@@ -1,0 +1,32 @@
+{
+  "name": "goverdhan-haveli",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "homepage": "https://govardhan-haveli.github.io/tgh",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.0",
+    "canvas-confetti": "^1.9.4",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.2.0",
+    "three": "^0.173.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/three": "^0.173.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "gh-pages": "^6.3.0",
+    "vite": "^5.4.14"
+  }
+}
