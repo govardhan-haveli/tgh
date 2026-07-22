@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Image, Maximize2, X, UploadCloud, Sparkles, FolderHeart } from 'lucide-react';
-import { GALLERY_PHOTOS, JANMASTHAMI_CONFIG } from '../data/data';
+import { Image, Maximize2, X } from 'lucide-react';
 import celebration1Img from '../assets/celebration1.jpg';
 import heroBannerImg from '../assets/hero-banner.jpg';
 import tshirtMockupImg from '../assets/tshirt-mockup.png';
@@ -10,9 +9,7 @@ import logoImg from '../assets/logo.png';
 export const MediaGallery = () => {
   const [activeCategory, setActiveCategory] = useState('All');
   const [selectedImage, setSelectedImage] = useState(null);
-  const [showUploadInfo, setShowUploadInfo] = useState(false);
 
-  // Map high quality assets
   const photos = [
     {
       id: 1,
@@ -55,48 +52,18 @@ export const MediaGallery = () => {
       <div className="max-w-7xl mx-auto">
         
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold mb-3">
-              <Image className="w-4 h-4 text-amber-400" />
-              <span>Memories & Moments</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-100 font-serif">
-              Janmashtami Celebration Photos
-            </h2>
-            <p className="text-slate-300 text-sm sm:text-base mt-2">
-              Glance back at our previous Mahotsav celebrations, Dahi Handi, and team spirit.
-            </p>
+        <div className="mb-10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold mb-3">
+            <Image className="w-4 h-4 text-amber-400" />
+            <span>Memories & Moments</span>
           </div>
-
-          {/* Cloudinary Setup Placeholder Button */}
-          <button
-            onClick={() => setShowUploadInfo(!showUploadInfo)}
-            className="self-start md:self-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0d1425] border border-amber-500/30 hover:border-amber-400 text-amber-300 text-xs font-semibold transition"
-          >
-            <UploadCloud className="w-4 h-4 text-amber-400" />
-            <span>Cloudinary Photo Upload Module</span>
-          </button>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-100 font-serif">
+            Janmashtami Celebration Photos
+          </h2>
+          <p className="text-slate-300 text-sm sm:text-base mt-2">
+            Glance back at our previous Mahotsav celebrations, Dahi Handi, and team spirit.
+          </p>
         </div>
-
-        {/* Cloudinary Info Banner */}
-        {showUploadInfo && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mb-8 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-200 space-y-2"
-          >
-            <div className="flex items-center gap-2 font-bold text-amber-300 text-base">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              <span>Cloudinary Direct Upload Ready</span>
-            </div>
-            <p>
-              The Cloudinary direct media upload architecture is configured in <code className="text-amber-400 bg-black/40 px-2 py-0.5 rounded">src/data/data.js</code> and environment variable <code className="text-amber-400 bg-black/40 px-2 py-0.5 rounded">VITE_CLOUDINARY_CLOUD_NAME</code>.
-              When Cloudinary keys are provided, members can directly upload photos to your Cloudinary media library!
-            </p>
-          </motion.div>
-        )}
 
         {/* Category Tabs */}
         <div className="flex flex-wrap gap-2 mb-8">

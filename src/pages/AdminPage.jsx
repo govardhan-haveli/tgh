@@ -160,12 +160,6 @@ export const AdminPage = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-slate-100 font-serif">
                 T-Shirt Admin Control
               </h1>
-              <div className="flex items-center gap-2 text-xs text-amber-400 mt-0.5">
-                <Database className="w-3.5 h-3.5" />
-                <span>
-                  Storage: {dataSource === 'supabase' ? 'Supabase DB' : 'LocalStorage (Demo Mode)'}
-                </span>
-              </div>
             </div>
           </div>
 
