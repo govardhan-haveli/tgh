@@ -60,7 +60,7 @@ export const fetchRegistrations = async () => {
 /**
  * Submit a new T-shirt registration directly to Supabase DB
  */
-export const submitRegistration = async ({ name, mobile, size }) => {
+export const submitRegistration = async ({ name, mobile, size, payment_screenshot_url }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
@@ -69,6 +69,7 @@ export const submitRegistration = async ({ name, mobile, size }) => {
     name: name.trim(),
     mobile: mobile.trim(),
     size,
+    payment_screenshot_url: payment_screenshot_url || '',
     status: 'Pending'
   };
 
@@ -79,6 +80,58 @@ export const submitRegistration = async ({ name, mobile, size }) => {
 
   if (error) throw error;
   return { success: true, data: data[0], source: 'supabase' };
+};
+
+/**
+ * Fetch dynamic T-shirt settings (price, QR code URL, sample image URL, description)
+ */
+export const fetchTShirtSettings = async () => {
+  if (!supabase) {
+    return { data: null, error: "Supabase client not initialized" };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn("Could not fetch tshirt_settings from Supabase:", error.message);
+      return { data: null, error: error.message };
+    }
+
+    return { data, error: null };
+  } catch (err) {
+    console.warn("Failed to fetch tshirt_settings:", err.message);
+    return { data: null, error: err.message };
+  }
+};
+
+/**
+ * Update dynamic T-shirt settings (price, QR code URL, sample image URL, description)
+ */
+export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const payload = {
+    price: Number(price) || 250,
+    qr_code_url: qr_code_url || '',
+    sample_image_url: sample_image_url || '',
+    description: description || '',
+    updated_at: new Date().toISOString()
+  };
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings')
+    .upsert({ id: 1, ...payload })
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
 };
 
 /**

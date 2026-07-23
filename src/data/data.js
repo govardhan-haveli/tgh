@@ -26,13 +26,14 @@ export const JANMASTHAMI_CONFIG = {
     "TGH@2026"
   ],
 
-  // Supabase Table Name
+  // Supabase Table Names
   supabaseTableName: "tshirt_registrations",
+  supabaseSettingsTableName: "tshirt_settings",
 
-  // Cloudinary configuration defaults for future direct upload module
+  // Cloudinary configuration defaults
   cloudinary: {
-    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "goverdhan-haveli-cloud",
-    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "haveli_unsigned_preset",
+    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "",
+    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "",
     folder: "janmashtami_celebrations"
   }
 };
