@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Instagram, ArrowLeft, ExternalLink, Sparkles, Film, Heart, Search, Filter } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Instagram, ArrowLeft, ExternalLink, Film, Heart, Search, Filter, Play, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { fetchInstagramReels } from '../services/supabase';
 
@@ -9,7 +9,10 @@ export const getInstagramEmbedUrl = (url) => {
   if (!url) return '';
   const match = url.match(/instagram\.com\/(?:reel|p|reels)\/([^/?#&]+)/i);
   if (match && match[1]) {
-    return `https://www.instagram.com/reel/${match[1]}/embed/`;
+    const isReel = url.toLowerCase().includes('/reel/') || url.toLowerCase().includes('/reels/');
+    return isReel
+      ? `https://www.instagram.com/reel/${match[1]}/embed/`
+      : `https://www.instagram.com/p/${match[1]}/embed/`;
   }
   if (url.includes('/embed')) {
     return url.replace(/\/captioned\/?/i, '/');
@@ -38,6 +41,7 @@ export const InstagramPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [selectedReel, setSelectedReel] = useState(null);
 
   useEffect(() => {
     const loadReels = async () => {
@@ -174,18 +178,31 @@ export const InstagramPage = () => {
                     </a>
                   </div>
 
-                  {/* Reel / Photo Frame (Pure Content Only - Crops Top White Header & Bottom 'View More' Bar on both Photos & Reels) */}
-                  <div className="w-full bg-[#080d19] relative h-[335px] sm:h-[345px] flex items-center justify-center overflow-hidden">
+                  {/* Reel / Photo Frame (Pure Content Only) */}
+                  <div className="w-full bg-[#080d19] relative h-[335px] sm:h-[345px] flex items-center justify-center overflow-hidden group">
                     {embedUrl ? (
-                      <iframe
-                        src={embedUrl}
-                        className="w-[112%] h-[470px] -mt-[58px] border-0 overflow-hidden pointer-events-auto scale-[1.06]"
-                        title={reel.title}
-                        scrolling="no"
-                        allowTransparency={true}
-                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                        loading="lazy"
-                      ></iframe>
+                      <>
+                        <iframe
+                          src={embedUrl}
+                          className="w-[112%] h-[470px] -mt-[58px] border-0 overflow-hidden pointer-events-auto scale-[1.06]"
+                          title={reel.title}
+                          scrolling="no"
+                          allowTransparency={true}
+                          allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                          loading="lazy"
+                        ></iframe>
+
+                        {/* Mobile Expand Button Overlay */}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReel(reel)}
+                          className="absolute bottom-3 right-3 p-2 rounded-full bg-pink-600/90 text-white shadow-lg backdrop-blur-md hover:scale-110 active:scale-95 transition flex items-center gap-1 text-[11px] font-bold z-10"
+                          title="Watch Full Reel"
+                        >
+                          <Play className="w-3.5 h-3.5 fill-current" />
+                          <span>Expand</span>
+                        </button>
+                      </>
                     ) : (
                       <div className="text-center p-6 text-slate-400 space-y-2">
                         <Film className="w-10 h-10 text-pink-400 mx-auto" />
@@ -218,6 +235,69 @@ export const InstagramPage = () => {
         )}
 
       </div>
+
+      {/* FULLSCREEN REEL MODAL PLAYER FOR MOBILE COMPATIBILITY */}
+      <AnimatePresence>
+        {selectedReel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-3 sm:p-4"
+            onClick={() => setSelectedReel(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0d1425] border border-pink-500/40 rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] relative"
+            >
+              <div className="flex items-center justify-between p-3.5 bg-[#0a0f1d] border-b border-pink-500/20">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Instagram className="w-4 h-4 text-pink-400 flex-shrink-0" />
+                  <h3 className="text-xs sm:text-sm font-bold text-slate-100 truncate">
+                    {selectedReel.title}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedReel(null)}
+                  className="p-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/30 text-rose-300 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="w-full bg-[#080d19] relative flex-grow min-h-[460px] flex items-center justify-center overflow-hidden">
+                <iframe
+                  src={getInstagramEmbedUrl(selectedReel.reel_url)}
+                  className="w-full h-[520px] -mt-[56px] border-0"
+                  title={selectedReel.title}
+                  allowTransparency={true}
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                ></iframe>
+              </div>
+
+              <div className="p-3.5 bg-[#0a0f1d] border-t border-pink-500/20 flex items-center justify-between">
+                <span className="text-xs text-pink-300 font-semibold">
+                  Goverdhan Haveli Janmashtami 2026
+                </span>
+                <a
+                  href={selectedReel.reel_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md"
+                >
+                  <span>Watch on Instagram App</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };
