@@ -153,6 +153,57 @@ export const updateRegistrationStatus = async (id, status) => {
 };
 
 /**
+ * Update full registration details (Name, Mobile, Size, Status, Screenshot URL)
+ */
+export const updateRegistrationDetails = async (id, { name, mobile, size, status, payment_screenshot_url }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const payload = {
+    name: name.trim(),
+    mobile: mobile.trim(),
+    size,
+    status: status || 'Pending',
+    payment_screenshot_url: payment_screenshot_url || ''
+  };
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseTableName)
+    .update(payload)
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
+ * Admin direct registration entry (No payment screenshot or QR code required)
+ */
+export const adminCreateRegistration = async ({ name, mobile, size, status, payment_screenshot_url }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const newEntry = {
+    name: name.trim(),
+    mobile: mobile.trim(),
+    size,
+    status: status || 'Accepted',
+    payment_screenshot_url: payment_screenshot_url || ''
+  };
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseTableName)
+    .insert([newEntry])
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
  * Delete a registration from Supabase DB
  */
 export const deleteRegistration = async (id) => {

@@ -21,12 +21,18 @@ import {
   AlertCircle,
   Loader2,
   FileImage,
-  Sliders
+  Sliders,
+  Plus,
+  Pencil,
+  UserPlus,
+  FileCheck
 } from 'lucide-react';
 import { AdminAuthModal } from '../components/AdminAuthModal';
 import {
   fetchRegistrations,
   updateRegistrationStatus,
+  updateRegistrationDetails,
+  adminCreateRegistration,
   deleteRegistration,
   fixRegistrationNumbering,
   fetchTShirtSettings,
@@ -52,8 +58,32 @@ export const AdminPage = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [sizeFilter, setSizeFilter] = useState('All');
 
-  // Preview Modal for Payment Screenshot
+  // Modal States
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
+  const [editingRegistration, setEditingRegistration] = useState(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState('');
+
+  // Form State for Add New Entry
+  const [addForm, setAddForm] = useState({
+    name: '',
+    mobile: '',
+    size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)',
+    status: 'Accepted',
+    payment_screenshot_url: ''
+  });
+  const [addFile, setAddFile] = useState(null);
+
+  // Form State for Edit Entry
+  const [editForm, setEditForm] = useState({
+    name: '',
+    mobile: '',
+    size: '38 (S)',
+    status: 'Pending',
+    payment_screenshot_url: ''
+  });
+  const [editFile, setEditFile] = useState(null);
 
   // Dynamic T-Shirt & Payment Settings state
   const [settings, setSettings] = useState({
@@ -139,15 +169,38 @@ export const AdminPage = () => {
     setIsAuthenticated(false);
   };
 
-  // Export to CSV for T-Shirt Printing Vendor
+  // Filtered List based on search, status, and size
+  const filteredRegistrations = registrations.filter(item => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.mobile.includes(searchTerm) ||
+      (item.registration_no && item.registration_no.toString().includes(searchTerm));
+    const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
+    const matchesSize = sizeFilter === 'All' || item.size === sizeFilter;
+    return matchesSearch && matchesStatus && matchesSize;
+  });
+
+  // Calculate size counts based on FILTERED registrations for Vendor Bulk Printing Order
+  const filteredSizeCounts = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => {
+    acc[sz] = filteredRegistrations.filter(r => r.size === sz).length;
+    return acc;
+  }, {});
+
+  const totalFilteredPcs = filteredRegistrations.length;
+  const totalCount = registrations.length;
+  const pendingCount = registrations.filter(r => r.status === 'Pending').length;
+  const acceptedCount = registrations.filter(r => r.status === 'Accepted').length;
+  const deliveredCount = registrations.filter(r => r.status === 'Delivered').length;
+
+  // Export to CSV for T-Shirt Printing Vendor (Exports currently filtered data)
   const handleExportCSV = () => {
-    if (registrations.length === 0) {
-      alert('No registration data to export.');
+    if (filteredRegistrations.length === 0) {
+      alert('No registration data matches the current filter to export.');
       return;
     }
 
     const headers = ['Reg No', 'UUID ID', 'Date', 'Name', 'Mobile Number', 'T-Shirt Size', 'Payment Screenshot URL', 'Status'];
-    const rows = registrations.map((r, idx) => [
+    const rows = filteredRegistrations.map((r, idx) => [
       r.registration_no || idx + 1,
       r.id,
       new Date(r.created_at).toLocaleDateString(),
@@ -164,10 +217,114 @@ export const AdminPage = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Goverdhan_Haveli_TShirt_Orders_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `Goverdhan_Haveli_TShirt_Orders_${statusFilter}_${new Date().toISOString().slice(0,10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Open Edit Modal
+  const handleOpenEditModal = (item) => {
+    setEditingRegistration(item);
+    setEditForm({
+      name: item.name || '',
+      mobile: item.mobile || '',
+      size: item.size || '38 (S)',
+      status: item.status || 'Pending',
+      payment_screenshot_url: item.payment_screenshot_url || ''
+    });
+    setEditFile(null);
+    setModalError('');
+  };
+
+  // Submit Edit Registration
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim()) {
+      setModalError('Please enter full name.');
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(editForm.mobile.trim())) {
+      setModalError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    setModalLoading(true);
+    setModalError('');
+
+    try {
+      let screenshotUrl = editForm.payment_screenshot_url;
+      if (editFile) {
+        screenshotUrl = await uploadToCloudinary(editFile);
+      }
+
+      const res = await updateRegistrationDetails(editingRegistration.id, {
+        name: editForm.name,
+        mobile: editForm.mobile,
+        size: editForm.size,
+        status: editForm.status,
+        payment_screenshot_url: screenshotUrl
+      });
+
+      if (res.success) {
+        setRegistrations(prev =>
+          prev.map(r => r.id === editingRegistration.id ? { ...r, ...res.data } : r)
+        );
+        setEditingRegistration(null);
+      }
+    } catch (err) {
+      setModalError(err.message || 'Failed to update registration.');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  // Submit Add Registration (Admin entry - NO QR Code Required!)
+  const handleSaveAdd = async (e) => {
+    e.preventDefault();
+    if (!addForm.name.trim()) {
+      setModalError('Please enter full name.');
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(addForm.mobile.trim())) {
+      setModalError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    setModalLoading(true);
+    setModalError('');
+
+    try {
+      let screenshotUrl = addForm.payment_screenshot_url;
+      if (addFile) {
+        screenshotUrl = await uploadToCloudinary(addFile);
+      }
+
+      const res = await adminCreateRegistration({
+        name: addForm.name,
+        mobile: addForm.mobile,
+        size: addForm.size,
+        status: addForm.status,
+        payment_screenshot_url: screenshotUrl
+      });
+
+      if (res.success) {
+        await loadData();
+        setIsAddModalOpen(false);
+        setAddForm({
+          name: '',
+          mobile: '',
+          size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)',
+          status: 'Accepted',
+          payment_screenshot_url: ''
+        });
+        setAddFile(null);
+      }
+    } catch (err) {
+      setModalError(err.message || 'Failed to add registration.');
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   // Save Settings Handler
@@ -180,13 +337,11 @@ export const AdminPage = () => {
       let finalQrUrl = settings.qr_code_url;
       let finalSampleUrl = settings.sample_image_url;
 
-      // Upload QR file if new file selected
       if (qrFile) {
         setSettingsMsg({ type: 'info', text: 'Uploading QR Code image to Cloudinary...' });
         finalQrUrl = await uploadToCloudinary(qrFile);
       }
 
-      // Upload Sample T-shirt file if new file selected
       if (sampleFile) {
         setSettingsMsg({ type: 'info', text: 'Uploading T-Shirt Sample image to Cloudinary...' });
         finalSampleUrl = await uploadToCloudinary(sampleFile);
@@ -219,27 +374,6 @@ export const AdminPage = () => {
     }
   };
 
-  // Filtered List
-  const filteredRegistrations = registrations.filter(item => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.mobile.includes(searchTerm) ||
-      (item.registration_no && item.registration_no.toString().includes(searchTerm));
-    const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesSize = sizeFilter === 'All' || item.size === sizeFilter;
-    return matchesSearch && matchesStatus && matchesSize;
-  });
-
-  const sizeCounts = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => {
-    acc[sz] = registrations.filter(r => r.size === sz).length;
-    return acc;
-  }, {});
-
-  const totalCount = registrations.length;
-  const pendingCount = registrations.filter(r => r.status === 'Pending').length;
-  const acceptedCount = registrations.filter(r => r.status === 'Accepted').length;
-  const deliveredCount = registrations.filter(r => r.status === 'Delivered').length;
-
   if (!isAuthenticated) {
     return <AdminAuthModal onAuthenticated={() => setIsAuthenticated(true)} />;
   }
@@ -259,14 +393,26 @@ export const AdminPage = () => {
                 Goverdhan Haveli Admin Dashboard
               </h1>
               <p className="text-xs text-slate-400">
-                Manage registrations, verify payment screenshots & configure dynamic QR codes
+                Manage orders, add manual entries, verify payment screenshots & set dynamic QR code
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Add New Registration Button */}
+            <button
+              onClick={() => {
+                setModalError('');
+                setIsAddModalOpen(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold text-xs transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5 active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>Add Registration</span>
+            </button>
+
             {/* Tab Switching Buttons */}
-            <div className="flex bg-[#080d19] p-1 rounded-2xl border border-amber-500/20 mr-2">
+            <div className="flex bg-[#080d19] p-1 rounded-2xl border border-amber-500/20 mr-1">
               <button
                 onClick={() => setActiveTab('registrations')}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
@@ -276,7 +422,7 @@ export const AdminPage = () => {
                 }`}
               >
                 <Shirt className="w-4 h-4" />
-                <span>Registrations</span>
+                <span>Orders</span>
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
@@ -287,7 +433,7 @@ export const AdminPage = () => {
                 }`}
               >
                 <Sliders className="w-4 h-4" />
-                <span>QR & Price Settings</span>
+                <span>QR & Price</span>
               </button>
             </div>
 
@@ -298,7 +444,7 @@ export const AdminPage = () => {
               title="Fix & Resequence Registration Numbers"
             >
               <ListOrdered className={`w-4 h-4 text-amber-400 ${fixLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Fix Numbering</span>
+              <span className="hidden sm:inline">Fix Numbers</span>
             </button>
 
             <button
@@ -334,7 +480,7 @@ export const AdminPage = () => {
             {/* Stats Overview Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-amber-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total Requests</div>
+                <div className="text-[11px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total Registrations</div>
                 <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono mt-1">{totalCount}</div>
               </div>
 
@@ -354,17 +500,39 @@ export const AdminPage = () => {
               </div>
             </div>
 
-            {/* Size Order Summary */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-amber-500/20">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider mb-3">
-                <Shirt className="w-4 h-4 text-amber-400" />
-                <span>T-Shirt Size Summary (For Vendor Bulk Printing Order)</span>
+            {/* DYNAMIC SIZE ORDER SUMMARY (BASED ON FILTERED STATUS) */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-amber-500/30 shadow-xl space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider">
+                  <Shirt className="w-4 h-4 text-amber-400" />
+                  <span>T-Shirt Size Summary (For Vendor Printing Order)</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">Current Filter:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs">
+                    {statusFilter === 'All' ? 'ALL STATUSES' : statusFilter.toUpperCase()}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs font-mono">
+                    Total: {totalFilteredPcs} Pcs
+                  </span>
+                </div>
               </div>
+
               <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
                 {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => (
-                  <div key={sz} className="p-2.5 rounded-xl bg-[#080d19] border border-amber-500/10 text-center">
+                  <div
+                    key={sz}
+                    className={`p-2.5 rounded-xl border transition text-center ${
+                      filteredSizeCounts[sz] > 0
+                        ? 'bg-amber-500/10 border-amber-500/40'
+                        : 'bg-[#080d19] border-amber-500/10 opacity-60'
+                    }`}
+                  >
                     <div className="text-[11px] font-bold text-amber-400 truncate">{sz}</div>
-                    <div className="text-lg font-mono font-bold text-slate-100 mt-0.5">{sizeCounts[sz]} Pcs</div>
+                    <div className="text-lg font-mono font-bold text-slate-100 mt-0.5">
+                      {filteredSizeCounts[sz]} Pcs
+                    </div>
                   </div>
                 ))}
               </div>
@@ -388,17 +556,17 @@ export const AdminPage = () => {
               <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
                 <div className="flex items-center gap-1 text-xs text-slate-400">
                   <Filter className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Status:</span>
+                  <span>Status Filter:</span>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                    className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none font-semibold cursor-pointer"
                   >
                     <option value="All">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Accepted">Accepted</option>
-                    <option value="Rejected">Rejected</option>
-                    <option value="Delivered">Delivered</option>
+                    <option value="Accepted">Accepted Only (For Vendor Order)</option>
+                    <option value="Pending">Pending Only</option>
+                    <option value="Delivered">Delivered Only</option>
+                    <option value="Rejected">Rejected Only</option>
                   </select>
                 </div>
 
@@ -407,7 +575,7 @@ export const AdminPage = () => {
                   <select
                     value={sizeFilter}
                     onChange={(e) => setSizeFilter(e.target.value)}
-                    className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                    className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none cursor-pointer"
                   >
                     <option value="All">All Sizes</option>
                     {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
@@ -431,14 +599,15 @@ export const AdminPage = () => {
                       <th className="p-3.5">Size</th>
                       <th className="p-3.5 text-center">Payment Screenshot</th>
                       <th className="p-3.5">Status</th>
-                      <th className="p-3.5 text-center">Manage Status</th>
+                      <th className="p-3.5 text-center">Status Action</th>
+                      <th className="p-3.5 text-center">Edit</th>
                       <th className="p-3.5 text-right">Delete</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-500/10 text-slate-200">
                     {filteredRegistrations.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-slate-400">
+                        <td colSpan={10} className="p-8 text-center text-slate-400">
                           No matching T-shirt registrations found.
                         </td>
                       </tr>
@@ -499,6 +668,7 @@ export const AdminPage = () => {
                             </span>
                           </td>
 
+                          {/* Quick Status Action Buttons */}
                           <td className="p-3.5 text-center">
                             <div className="flex items-center justify-center gap-1">
                               <button
@@ -524,6 +694,19 @@ export const AdminPage = () => {
                               </button>
                             </div>
                           </td>
+
+                          {/* Edit Individual Data Button */}
+                          <td className="p-3.5 text-center">
+                            <button
+                              onClick={() => handleOpenEditModal(item)}
+                              className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 transition"
+                              title="Edit User Registration"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          </td>
+
+                          {/* Delete Button */}
                           <td className="p-3.5 text-right">
                             <button
                               onClick={() => handleDelete(item.id)}
@@ -751,7 +934,7 @@ export const AdminPage = () => {
                   <button
                     type="submit"
                     disabled={savingSettings}
-                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold shadow-lg shadow-amber-500/20 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold shadow-lg shadow-amber-500/20 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
                   >
                     {savingSettings ? (
                       <>
@@ -773,7 +956,294 @@ export const AdminPage = () => {
 
       </div>
 
-      {/* FULL SCREEN PAYMENT SCREENSHOT PREVIEW MODAL */}
+      {/* MODAL 1: ADD REGISTRATION (ADMIN MANUAL ENTRY - QR CODE NOT REQUIRED) */}
+      <AnimatePresence>
+        {isAddModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setIsAddModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0d1425] border border-amber-500/40 rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-base font-serif">
+                  <UserPlus className="w-5 h-5 text-amber-400" />
+                  <span>Add New Registration (Admin Entry)</span>
+                </div>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="p-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/30 text-rose-300 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-400 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
+                ℹ️ Create registration manually for cash or offline payments. QR code and payment screenshot are <strong>not required</strong>!
+              </div>
+
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                  {modalError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveAdd} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Full Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.name}
+                    onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
+                    placeholder="e.g. Suresh Kumar"
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Mobile Number <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={addForm.mobile}
+                    onChange={(e) => setAddForm({ ...addForm, mobile: e.target.value })}
+                    placeholder="10-digit mobile number"
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-200 mb-1">
+                      T-Shirt Size
+                    </label>
+                    <select
+                      value={addForm.size}
+                      onChange={(e) => setAddForm({ ...addForm, size: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-200 mb-1">
+                      Initial Status
+                    </label>
+                    <select
+                      value={addForm.status}
+                      onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="Accepted">Accepted (Paid)</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Optional Payment Screenshot Photo
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setAddFile(e.target.files[0] || null)}
+                    className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500/20 file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-amber-500/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalLoading}
+                    className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {modalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Save Registration</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: EDIT INDIVIDUAL REGISTRATION */}
+      <AnimatePresence>
+        {editingRegistration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setEditingRegistration(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0d1425] border border-amber-500/40 rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-base font-serif">
+                  <Pencil className="w-5 h-5 text-amber-400" />
+                  <span>Edit Registration #{editingRegistration.registration_no}</span>
+                </div>
+                <button
+                  onClick={() => setEditingRegistration(null)}
+                  className="p-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/30 text-rose-300 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {modalError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                  {modalError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Full Name <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Mobile Number <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    maxLength={10}
+                    value={editForm.mobile}
+                    onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-200 mb-1">
+                      T-Shirt Size
+                    </label>
+                    <select
+                      value={editForm.size}
+                      onChange={(e) => setEditForm({ ...editForm, size: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-200 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={editForm.status}
+                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Accepted">Accepted</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Payment Screenshot Photo (Upload New to Replace)
+                  </label>
+                  {editForm.payment_screenshot_url && (
+                    <div className="mb-2 flex items-center gap-2">
+                      <img
+                        src={editForm.payment_screenshot_url}
+                        alt="Current Screenshot"
+                        className="w-8 h-8 object-cover rounded border border-amber-400"
+                      />
+                      <a
+                        href={editForm.payment_screenshot_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-amber-400 underline"
+                      >
+                        View Existing Photo
+                      </a>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setEditFile(e.target.files[0] || null)}
+                    className="w-full text-xs text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500/20 file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-amber-500/20">
+                  <button
+                    type="button"
+                    onClick={() => setEditingRegistration(null)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={modalLoading}
+                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {modalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Update Registration</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: FULL SCREEN PAYMENT SCREENSHOT PREVIEW */}
       <AnimatePresence>
         {selectedScreenshot && (
           <motion.div
