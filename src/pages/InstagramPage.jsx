@@ -178,15 +178,19 @@ export const InstagramPage = () => {
                     </a>
                   </div>
 
-                  {/* Embedded Reel / Photo Frame - 100% Clean Image View */}
+                  {/* Embedded Reel / Photo Frame - PC Direct Play Enabled (pointer-events-auto on PC, pointer-events-none on Mobile) */}
                   <div
-                    onClick={() => setSelectedReel(reel)}
-                    className="w-full bg-[#080d19] relative h-[335px] sm:h-[345px] flex items-center justify-center overflow-hidden cursor-pointer"
+                    onClick={(e) => {
+                      if (window.innerWidth < 768) {
+                        setSelectedReel(reel);
+                      }
+                    }}
+                    className="w-full bg-[#080d19] relative h-[335px] sm:h-[345px] flex items-center justify-center overflow-hidden cursor-pointer md:cursor-default"
                   >
                     {embedUrl ? (
                       <iframe
                         src={embedUrl}
-                        className="w-[112%] h-[470px] -mt-[58px] border-0 overflow-hidden pointer-events-none scale-[1.06]"
+                        className="w-[112%] h-[470px] -mt-[58px] border-0 overflow-hidden pointer-events-none md:pointer-events-auto scale-[1.06]"
                         title={reel.title}
                         scrolling="no"
                         allowTransparency={true}
@@ -201,17 +205,18 @@ export const InstagramPage = () => {
                     )}
                   </div>
 
-                  {/* Reel Card Footer with Bottom Play Reel Button */}
+                  {/* Reel Card Footer - Mobile Play Button & Direct App Link */}
                   <div className="p-3 bg-[#0a0f1d] border-t border-pink-500/20 flex items-center justify-between text-xs gap-2">
                     <span className="text-[10px] bg-pink-500/20 text-pink-300 font-bold px-2 py-1 rounded-md uppercase truncate">
                       {reel.category || 'Reel'}
                     </span>
 
                     <div className="flex items-center gap-1.5">
+                      {/* Mobile Only Play Reel Modal Button */}
                       <button
                         type="button"
                         onClick={() => setSelectedReel(reel)}
-                        className="px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer"
+                        className="md:hidden px-3 py-1 rounded-lg bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-[11px] flex items-center gap-1 shadow-sm active:scale-95 transition cursor-pointer"
                       >
                         <Play className="w-3 h-3 fill-current" />
                         <span>Play Reel</span>
@@ -221,9 +226,10 @@ export const InstagramPage = () => {
                         href={reel.reel_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/30 text-pink-300 transition"
+                        className="p-1.5 sm:px-2.5 sm:py-1 rounded-lg bg-pink-500/10 hover:bg-pink-500/30 text-pink-300 transition text-[10px] font-bold flex items-center gap-1"
                         title="Open on Instagram App"
                       >
+                        <span className="hidden sm:inline">Open App</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     </div>
