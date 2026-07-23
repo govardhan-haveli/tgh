@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Instagram, ExternalLink, Film, Heart, ArrowRight } from 'lucide-react';
+import { Instagram, ExternalLink, Film, Heart, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { fetchInstagramReels } from '../services/supabase';
 
@@ -9,7 +9,10 @@ export const getInstagramEmbedUrl = (url) => {
   if (!url) return '';
   const match = url.match(/instagram\.com\/(?:reel|p|reels)\/([^/?#&]+)/i);
   if (match && match[1]) {
-    return `https://www.instagram.com/reel/${match[1]}/embed/`;
+    const isReel = url.toLowerCase().includes('/reel/') || url.toLowerCase().includes('/reels/');
+    return isReel
+      ? `https://www.instagram.com/reel/${match[1]}/embed/`
+      : `https://www.instagram.com/p/${match[1]}/embed/`;
   }
   if (url.includes('/embed')) {
     return url.replace(/\/captioned\/?/i, '/');
@@ -36,6 +39,7 @@ const INITIAL_SAMPLE_REELS = [
 export const InstagramReelsGallery = () => {
   const [reels, setReels] = useState([]);
   const [loading, setLoading] = useState(true);
+  const scrollContainerRef = useRef(null);
 
   useEffect(() => {
     const loadReels = async () => {
@@ -51,6 +55,18 @@ export const InstagramReelsGallery = () => {
 
     loadReels();
   }, []);
+
+  const handleScrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -310, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: 310, behavior: 'smooth' });
+    }
+  };
 
   // Display Top 4 Reels on Home Page
   const topReels = reels.slice(0, 4);
@@ -70,7 +86,7 @@ export const InstagramReelsGallery = () => {
               Instagram Reels & Highlights
             </h2>
             <p className="text-slate-300 text-xs sm:text-sm">
-              Swipe or scroll to watch Dahi Handi & Aarti status reels directly on-page!
+              Swipe or tap arrows below to watch Dahi Handi & Aarti status reels directly!
             </p>
           </div>
 
@@ -84,7 +100,10 @@ export const InstagramReelsGallery = () => {
         </div>
 
         {/* Horizontal Scrollable Carousel on Mobile, Responsive Grid on Desktop */}
-        <div className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-4 md:pb-0 scrollbar-thin scrollbar-thumb-pink-500/30 touch-pan-x">
+        <div
+          ref={scrollContainerRef}
+          className="flex md:grid overflow-x-auto md:overflow-visible snap-x snap-mandatory md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-4 md:pb-0 scrollbar-thin scrollbar-thumb-pink-500/30 touch-pan-x scroll-smooth"
+        >
           {topReels.map((reel) => {
             const embedUrl = getInstagramEmbedUrl(reel.reel_url);
 
@@ -95,7 +114,7 @@ export const InstagramReelsGallery = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 whileHover={{ y: -5 }}
-                className="min-w-[280px] sm:min-w-[300px] md:min-w-0 w-full snap-center bg-[#0d1425] border border-pink-500/30 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between group transition duration-300 relative flex-shrink-0 md:flex-shrink"
+                className="min-w-[285px] sm:min-w-[300px] md:min-w-0 w-full snap-center bg-[#0d1425] border border-pink-500/30 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between group transition duration-300 relative flex-shrink-0 md:flex-shrink"
               >
                 {/* Reel Header */}
                 <div className="p-3 bg-gradient-to-r from-[#0d1425] via-[#080d19] to-[#0d1425] border-b border-pink-500/20 flex items-center justify-between">
@@ -121,7 +140,7 @@ export const InstagramReelsGallery = () => {
                   </a>
                 </div>
 
-                {/* Embedded Reel / Photo Frame - Pure Content Only (Crops Top White Header & Bottom 'View More' Bar on both Photos & Reels) */}
+                {/* Embedded Reel / Photo Frame - Mobile-Optimized Permissions & Crop */}
                 <div className="w-full bg-[#080d19] relative h-[335px] sm:h-[345px] flex items-center justify-center overflow-hidden">
                   {embedUrl ? (
                     <iframe
@@ -130,7 +149,7 @@ export const InstagramReelsGallery = () => {
                       title={reel.title}
                       scrolling="no"
                       allowTransparency={true}
-                      allow="encrypted-media"
+                      allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                       loading="lazy"
                     ></iframe>
                   ) : (
@@ -163,9 +182,31 @@ export const InstagramReelsGallery = () => {
           })}
         </div>
 
-        {/* Mobile Swipe Notice */}
-        <div className="block md:hidden text-center text-[11px] text-pink-300/80 font-medium">
-          👈 Swipe left to right to watch more reels 👉
+        {/* Mobile Swipe Notice & Interactive Prev / Next Navigation Buttons */}
+        <div className="flex items-center justify-between sm:justify-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={handleScrollLeft}
+            className="px-3.5 py-2 rounded-xl bg-[#0d1425] hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 text-xs font-bold transition flex items-center gap-1 active:scale-95 shadow-md cursor-pointer"
+            title="Scroll Left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Prev</span>
+          </button>
+
+          <div className="text-[11px] text-pink-300/80 font-medium text-center">
+            👈 Swipe left to right or tap arrows 👉
+          </div>
+
+          <button
+            type="button"
+            onClick={handleScrollRight}
+            className="px-3.5 py-2 rounded-xl bg-[#0d1425] hover:bg-pink-500/20 border border-pink-500/30 text-pink-300 text-xs font-bold transition flex items-center gap-1 active:scale-95 shadow-md cursor-pointer"
+            title="Scroll Right"
+          >
+            <span>Next</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
 
       </div>

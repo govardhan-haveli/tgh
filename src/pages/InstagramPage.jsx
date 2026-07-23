@@ -183,7 +183,7 @@ export const InstagramPage = () => {
                         title={reel.title}
                         scrolling="no"
                         allowTransparency={true}
-                        allow="encrypted-media"
+                        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
                         loading="lazy"
                       ></iframe>
                     ) : (
