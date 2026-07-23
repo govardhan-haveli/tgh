@@ -29,6 +29,7 @@ export const JANMASTHAMI_CONFIG = {
   // Supabase Table Names
   supabaseTableName: "tshirt_registrations",
   supabaseSettingsTableName: "tshirt_settings",
+  supabaseReelsTableName: "instagram_reels",
 
   // Cloudinary configuration defaults
   cloudinary: {

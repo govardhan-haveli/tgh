@@ -6,6 +6,7 @@ import { DivineBackground } from './components/DivineBackground';
 import { HomePage } from './pages/HomePage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { AdminPage } from './pages/AdminPage';
+import { InstagramPage } from './pages/InstagramPage';
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -37,6 +38,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/register" element={<RegistrationPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/instagram" element={<InstagramPage />} />
           </Routes>
         </main>
         <Footer />

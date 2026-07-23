@@ -252,3 +252,96 @@ export const fixRegistrationNumbering = async () => {
 
   return { success: true, count: data ? data.length : 0 };
 };
+
+/**
+ * Fetch all Instagram Reels from Supabase
+ */
+export const fetchInstagramReels = async () => {
+  if (!supabase) {
+    return { data: [], source: 'local' };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseReelsTableName || 'instagram_reels')
+      .select('*')
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn("Could not fetch instagram_reels:", error.message);
+      return { data: [], error: error.message };
+    }
+
+    return { data: data || [], source: 'supabase' };
+  } catch (err) {
+    console.warn("Failed to fetch instagram_reels:", err.message);
+    return { data: [], error: err.message };
+  }
+};
+
+/**
+ * Add a new Instagram Reel to Supabase
+ */
+export const addInstagramReel = async ({ title, reel_url, category, display_order }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const newEntry = {
+    title: title.trim(),
+    reel_url: reel_url.trim(),
+    category: category ? category.trim() : 'Janmashtami Highlights',
+    display_order: display_order ? parseInt(display_order) : 1
+  };
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseReelsTableName || 'instagram_reels')
+    .insert([newEntry])
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
+ * Update an existing Instagram Reel in Supabase
+ */
+export const updateInstagramReel = async (id, { title, reel_url, category, display_order }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const updatedData = {
+    title: title.trim(),
+    reel_url: reel_url.trim(),
+    category: category ? category.trim() : 'Janmashtami Highlights',
+    display_order: display_order ? parseInt(display_order) : 1
+  };
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseReelsTableName || 'instagram_reels')
+    .update(updatedData)
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
+ * Delete an Instagram Reel from Supabase
+ */
+export const deleteInstagramReel = async (id) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const { error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseReelsTableName || 'instagram_reels')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { success: true };
+};

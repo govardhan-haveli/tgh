@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MediaGallery } from '../components/MediaGallery';
 import { VideoGallery } from '../components/VideoGallery';
+import { InstagramReelsGallery } from '../components/InstagramReelsGallery';
 import { JANMASTHAMI_CONFIG } from '../data/data';
 import logoImg from '../assets/logo.png';
 import heroBannerImg from '../assets/hero-banner.jpg';
@@ -103,6 +104,9 @@ export const HomePage = () => {
 
       {/* Photo Gallery */}
       <MediaGallery />
+
+      {/* Instagram Reels Gallery */}
+      <InstagramReelsGallery />
 
       {/* Video Gallery */}
       <VideoGallery />

@@ -25,7 +25,8 @@ import {
   Plus,
   Pencil,
   UserPlus,
-  FileCheck
+  FileCheck,
+  Instagram
 } from 'lucide-react';
 import { AdminAuthModal } from '../components/AdminAuthModal';
 import {
@@ -36,7 +37,11 @@ import {
   deleteRegistration,
   fixRegistrationNumbering,
   fetchTShirtSettings,
-  updateTShirtSettings
+  updateTShirtSettings,
+  fetchInstagramReels,
+  addInstagramReel,
+  updateInstagramReel,
+  deleteInstagramReel
 } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
 import { JANMASTHAMI_CONFIG } from '../data/data';
@@ -96,6 +101,30 @@ export const AdminPage = () => {
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState({ type: '', text: '' });
 
+  // Instagram Reels State
+  const [reelsList, setReelsList] = useState([]);
+  const [loadingReels, setLoadingReels] = useState(false);
+  const [addingReel, setAddingReel] = useState(false);
+  const [reelMsg, setReelMsg] = useState({ type: '', text: '' });
+  const [newReel, setNewReel] = useState({
+    title: '',
+    reel_url: '',
+    category: 'Dahi Handi',
+    display_order: 1
+  });
+
+  // Edit Reel Modal State
+  const [isEditReelModalOpen, setIsEditReelModalOpen] = useState(false);
+  const [editingReel, setEditingReel] = useState({
+    id: '',
+    title: '',
+    reel_url: '',
+    category: 'Dahi Handi',
+    display_order: 1
+  });
+  const [savingEditReel, setSavingEditReel] = useState(false);
+  const [editReelError, setEditReelError] = useState('');
+
   // File upload states for Admin Settings
   const [qrFile, setQrFile] = useState(null);
   const [qrPreview, setQrPreview] = useState('');
@@ -107,6 +136,88 @@ export const AdminPage = () => {
     const { data } = await fetchRegistrations();
     setRegistrations(data || []);
     setLoading(false);
+  };
+
+  const loadReelsData = async () => {
+    setLoadingReels(true);
+    const res = await fetchInstagramReels();
+    setReelsList(res.data || []);
+    setLoadingReels(false);
+  };
+
+  const handleAddReel = async (e) => {
+    e.preventDefault();
+    if (!newReel.title.trim() || !newReel.reel_url.trim()) {
+      setReelMsg({ type: 'error', text: 'Please enter both Title and Reel URL.' });
+      return;
+    }
+
+    setAddingReel(true);
+    setReelMsg({ type: '', text: '' });
+
+    try {
+      const res = await addInstagramReel(newReel);
+      if (res.success) {
+        setReelMsg({ type: 'success', text: '✅ Instagram Reel added successfully!' });
+        setNewReel({
+          title: '',
+          reel_url: '',
+          category: 'Dahi Handi',
+          display_order: (reelsList.length + 1)
+        });
+        await loadReelsData();
+      }
+    } catch (err) {
+      setReelMsg({ type: 'error', text: err.message || 'Failed to add Instagram Reel.' });
+    } finally {
+      setAddingReel(false);
+    }
+  };
+
+  const handleOpenEditReelModal = (reel) => {
+    setEditingReel({
+      id: reel.id,
+      title: reel.title || '',
+      reel_url: reel.reel_url || '',
+      category: reel.category || 'Dahi Handi',
+      display_order: reel.display_order || 1
+    });
+    setEditReelError('');
+    setIsEditReelModalOpen(true);
+  };
+
+  const handleSaveEditReel = async (e) => {
+    e.preventDefault();
+    if (!editingReel.title.trim() || !editingReel.reel_url.trim()) {
+      setEditReelError('Title and Reel URL are required.');
+      return;
+    }
+
+    setSavingEditReel(true);
+    setEditReelError('');
+
+    try {
+      const res = await updateInstagramReel(editingReel.id, editingReel);
+      if (res.success) {
+        setIsEditReelModalOpen(false);
+        await loadReelsData();
+      }
+    } catch (err) {
+      setEditReelError(err.message || 'Failed to update Reel.');
+    } finally {
+      setSavingEditReel(false);
+    }
+  };
+
+  const handleDeleteReel = async (id) => {
+    if (window.confirm('Delete this Instagram Reel link?')) {
+      try {
+        await deleteInstagramReel(id);
+        setReelsList(prev => prev.filter(r => r.id !== id));
+      } catch (err) {
+        alert('Failed to delete reel: ' + err.message);
+      }
+    }
   };
 
   const loadSettingsData = async () => {
@@ -129,6 +240,7 @@ export const AdminPage = () => {
     if (isAuthenticated) {
       loadData();
       loadSettingsData();
+      loadReelsData();
     }
   }, [isAuthenticated]);
 
@@ -434,6 +546,17 @@ export const AdminPage = () => {
               >
                 <Sliders className="w-4 h-4" />
                 <span>QR & Price</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('reels')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  activeTab === 'reels'
+                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
+                    : 'text-pink-400 hover:text-white'
+                }`}
+              >
+                <Instagram className="w-4 h-4" />
+                <span>Instagram Reels</span>
               </button>
             </div>
 
@@ -954,6 +1077,197 @@ export const AdminPage = () => {
           </div>
         )}
 
+        {/* TAB 3: INSTAGRAM REELS MANAGEMENT */}
+        {activeTab === 'reels' && (
+          <div className="max-w-4xl mx-auto space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-[#0d1425] border border-pink-500/30 rounded-3xl p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-6"
+            >
+              <div className="flex items-center gap-3 border-b border-pink-500/20 pb-4">
+                <div className="p-3 rounded-2xl bg-gradient-to-tr from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400">
+                  <Instagram className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-100 font-serif">
+                    Add & Manage Instagram Reels
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Paste any Instagram Reel link to showcase it directly on the public homepage gallery.
+                  </p>
+                </div>
+              </div>
+
+              {reelMsg.text && (
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm ${
+                  reelMsg.type === 'success'
+                    ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                }`}>
+                  {reelMsg.type === 'success' ? (
+                    <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  )}
+                  <span>{reelMsg.text}</span>
+                </div>
+              )}
+
+              {/* Form to Add New Reel */}
+              <form onSubmit={handleAddReel} className="space-y-4 bg-[#080d19] p-5 rounded-2xl border border-pink-500/20">
+                <h3 className="text-xs font-bold text-pink-300 uppercase tracking-wider">
+                  Add New Instagram Reel Link
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-6">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Instagram Reel URL <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      value={newReel.reel_url}
+                      onChange={(e) => setNewReel({ ...newReel, reel_url: e.target.value })}
+                      placeholder="https://www.instagram.com/reel/C_xxxxxxx/"
+                      required
+                      className="w-full px-3.5 py-2.5 bg-[#0d1425] border border-pink-500/30 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-400"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      value={newReel.category}
+                      onChange={(e) => setNewReel({ ...newReel, category: e.target.value })}
+                      placeholder="e.g. Dahi Handi"
+                      className="w-full px-3.5 py-2.5 bg-[#0d1425] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Sequence Order No <span className="text-pink-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={newReel.display_order}
+                      onChange={(e) => setNewReel({ ...newReel, display_order: e.target.value })}
+                      placeholder="1, 2, 3..."
+                      required
+                      className="w-full px-3.5 py-2.5 bg-[#0d1425] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Reel Title / Caption <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newReel.title}
+                    onChange={(e) => setNewReel({ ...newReel, title: e.target.value })}
+                    placeholder="e.g. Goverdhan Haveli Matki Phod Highlights 2025"
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#0d1425] border border-pink-500/30 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-400"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={addingReel}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-md shadow-pink-500/20 transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  {addingReel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  <span>Add Reel to Website</span>
+                </button>
+              </form>
+
+              {/* Reels List */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Active Instagram Reels ({reelsList.length}) - Ordered by Sequence
+                </h3>
+
+                {loadingReels ? (
+                  <div className="py-6 text-center text-slate-400 flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin text-pink-400" />
+                    <span>Loading reels...</span>
+                  </div>
+                ) : reelsList.length === 0 ? (
+                  <div className="p-6 text-center text-slate-400 bg-[#080d19] rounded-2xl border border-pink-500/10 text-xs">
+                    No Instagram Reels added yet. Paste a Reel link above to display it on your website!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reelsList.map((reel) => (
+                      <div
+                        key={reel.id}
+                        className="p-3.5 rounded-2xl bg-[#080d19] border border-pink-500/20 flex items-center justify-between gap-3 hover:border-pink-500/40 transition"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          {/* Sequence Badge */}
+                          <div className="px-2.5 py-1 rounded-xl bg-pink-500/20 text-pink-300 font-extrabold text-xs border border-pink-500/30 flex-shrink-0" title="Sequence Order">
+                            #{reel.display_order || 1}
+                          </div>
+
+                          <div className="p-2 rounded-xl bg-pink-500/10 text-pink-400 flex-shrink-0">
+                            <Instagram className="w-4 h-4" />
+                          </div>
+
+                          <div className="overflow-hidden">
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xs font-bold text-slate-100 truncate">
+                                {reel.title}
+                              </h4>
+                              <span className="text-[10px] bg-pink-500/20 text-pink-300 px-1.5 py-0.5 rounded font-semibold">
+                                {reel.category || 'Reel'}
+                              </span>
+                            </div>
+                            <a
+                              href={reel.reel_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[11px] text-pink-300 hover:underline flex items-center gap-1 truncate"
+                            >
+                              <span className="truncate">{reel.reel_url}</span>
+                              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons: Edit & Delete */}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => handleOpenEditReelModal(reel)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-amber-300 hover:bg-amber-500/10 transition"
+                            title="Edit Reel Title / URL / Order"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReel(reel.id)}
+                            className="p-2 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            title="Delete Reel"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+
       </div>
 
       {/* MODAL 1: ADD REGISTRATION (ADMIN MANUAL ENTRY - QR CODE NOT REQUIRED) */}
@@ -1305,6 +1619,120 @@ export const AdminPage = () => {
                   Close
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4: EDIT INSTAGRAM REEL DETAILS */}
+      <AnimatePresence>
+        {isEditReelModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setIsEditReelModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0d1425] border border-pink-500/40 rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-pink-500/20 pb-3">
+                <div className="flex items-center gap-2 text-pink-300 font-bold text-base font-serif">
+                  <Pencil className="w-5 h-5 text-pink-400" />
+                  <span>Edit Instagram Reel</span>
+                </div>
+                <button
+                  onClick={() => setIsEditReelModalOpen(false)}
+                  className="p-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/30 text-rose-300 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {editReelError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                  {editReelError}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEditReel} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Reel Title / Caption <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editingReel.title}
+                    onChange={(e) => setEditingReel({ ...editingReel, title: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Instagram Reel URL <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={editingReel.reel_url}
+                    onChange={(e) => setEditingReel({ ...editingReel, reel_url: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      value={editingReel.category}
+                      onChange={(e) => setEditingReel({ ...editingReel, category: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-[#080d19] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Sequence Order No <span className="text-pink-400">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={editingReel.display_order}
+                      onChange={(e) => setEditingReel({ ...editingReel, display_order: e.target.value })}
+                      required
+                      className="w-full px-3.5 py-2.5 bg-[#080d19] border border-pink-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-pink-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3 border-t border-pink-500/20">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditReelModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEditReel}
+                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-xs shadow-md transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {savingEditReel ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    <span>Update Reel</span>
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}
