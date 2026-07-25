@@ -74,7 +74,7 @@ export const AdminPage = () => {
   const [addForm, setAddForm] = useState({
     name: '',
     mobile: '',
-    size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)',
+    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
     status: 'Accepted',
     payment_screenshot_url: ''
   });
@@ -84,7 +84,7 @@ export const AdminPage = () => {
   const [editForm, setEditForm] = useState({
     name: '',
     mobile: '',
-    size: '38 (S)',
+    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
     status: 'Pending',
     payment_screenshot_url: ''
   });
@@ -148,27 +148,25 @@ export const AdminPage = () => {
   const handleAddReel = async (e) => {
     e.preventDefault();
     if (!newReel.title.trim() || !newReel.reel_url.trim()) {
-      setReelMsg({ type: 'error', text: 'Please enter both Title and Reel URL.' });
+      setReelMsg({ type: 'error', text: 'Please fill title and reel URL.' });
       return;
     }
-
     setAddingReel(true);
     setReelMsg({ type: '', text: '' });
-
     try {
-      const res = await addInstagramReel(newReel);
+      const res = await addInstagramReel({
+        title: newReel.title,
+        reel_url: newReel.reel_url,
+        category: newReel.category,
+        display_order: Number(newReel.display_order) || 1
+      });
       if (res.success) {
-        setReelMsg({ type: 'success', text: '✅ Instagram Reel added successfully!' });
-        setNewReel({
-          title: '',
-          reel_url: '',
-          category: 'Dahi Handi',
-          display_order: (reelsList.length + 1)
-        });
+        setReelMsg({ type: 'success', text: 'Reel added successfully!' });
+        setNewReel({ title: '', reel_url: '', category: 'Dahi Handi', display_order: reelsList.length + 2 });
         await loadReelsData();
       }
     } catch (err) {
-      setReelMsg({ type: 'error', text: err.message || 'Failed to add Instagram Reel.' });
+      setReelMsg({ type: 'error', text: err.message || 'Failed to add reel.' });
     } finally {
       setAddingReel(false);
     }
@@ -189,38 +187,40 @@ export const AdminPage = () => {
   const handleSaveEditReel = async (e) => {
     e.preventDefault();
     if (!editingReel.title.trim() || !editingReel.reel_url.trim()) {
-      setEditReelError('Title and Reel URL are required.');
+      setEditReelError('Please enter title and reel URL.');
       return;
     }
-
     setSavingEditReel(true);
     setEditReelError('');
-
     try {
-      const res = await updateInstagramReel(editingReel.id, editingReel);
+      const res = await updateInstagramReel(editingReel.id, {
+        title: editingReel.title,
+        reel_url: editingReel.reel_url,
+        category: editingReel.category,
+        display_order: Number(editingReel.display_order) || 1
+      });
       if (res.success) {
         setIsEditReelModalOpen(false);
         await loadReelsData();
       }
     } catch (err) {
-      setEditReelError(err.message || 'Failed to update Reel.');
+      setEditReelError(err.message || 'Failed to update reel.');
     } finally {
       setSavingEditReel(false);
     }
   };
 
   const handleDeleteReel = async (id) => {
-    if (window.confirm('Delete this Instagram Reel link?')) {
-      try {
-        await deleteInstagramReel(id);
-        setReelsList(prev => prev.filter(r => r.id !== id));
-      } catch (err) {
-        alert('Failed to delete reel: ' + err.message);
-      }
+    if (!window.confirm('Are you sure you want to delete this Instagram Reel?')) return;
+    try {
+      await deleteInstagramReel(id);
+      await loadReelsData();
+    } catch (err) {
+      alert(`Failed to delete reel: ${err.message}`);
     }
   };
 
-  const loadSettingsData = async () => {
+  const loadSettings = async () => {
     setLoadingSettings(true);
     const res = await fetchTShirtSettings();
     if (res.data) {
@@ -228,10 +228,8 @@ export const AdminPage = () => {
         price: res.data.price || 250,
         qr_code_url: res.data.qr_code_url || '',
         sample_image_url: res.data.sample_image_url || '',
-        description: res.data.description || ''
+        description: res.data.description || 'Goverdhan Haveli Official Janmashtami T-Shirt 2026'
       });
-      setQrPreview(res.data.qr_code_url || '');
-      setSamplePreview(res.data.sample_image_url || '');
     }
     setLoadingSettings(false);
   };
@@ -239,89 +237,133 @@ export const AdminPage = () => {
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
-      loadSettingsData();
+      loadSettings();
       loadReelsData();
     }
   }, [isAuthenticated]);
 
   const handleStatusChange = async (id, newStatus) => {
-    await updateRegistrationStatus(id, newStatus);
-    setRegistrations(prev =>
-      prev.map(item => item.id === id ? { ...item, status: newStatus } : item)
-    );
+    try {
+      await updateRegistrationStatus(id, newStatus);
+      setRegistrations(prev =>
+        prev.map(r => r.id === id ? { ...r, status: newStatus } : r)
+      );
+    } catch (err) {
+      alert(`Failed to update status: ${err.message}`);
+    }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this registration?')) {
+    if (!window.confirm("Are you sure you want to delete this registration?")) return;
+    try {
       await deleteRegistration(id);
-      setRegistrations(prev => prev.filter(item => item.id !== id));
+      setRegistrations(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      alert(`Failed to delete: ${err.message}`);
     }
   };
 
   const handleFixNumbering = async () => {
-    if (!window.confirm('Re-sequence all registration numbers sequentially (1, 2, 3...) based on registration date?')) {
-      return;
-    }
+    if (!window.confirm("This will re-assign registration numbers (1, 2, 3...) based on creation date. Proceed?")) return;
     setFixLoading(true);
     try {
-      const res = await fixRegistrationNumbering();
-      if (res.success) {
-        alert(`✅ Fixed registration numbers sequentially for ${res.count} record(s)!`);
-        await loadData();
-      }
+      await fixRegistrationNumbering();
+      await loadData();
+      alert("Registration numbers successfully re-sequenced!");
     } catch (err) {
-      alert('Failed to fix numbering: ' + err.message);
+      alert(`Failed to re-sequence numbers: ${err.message}`);
     } finally {
       setFixLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleAdminLogout = () => {
     sessionStorage.removeItem('goverdhan_admin_authenticated');
     setIsAuthenticated(false);
   };
 
   // Filtered List based on search, status, and size
   const filteredRegistrations = registrations.filter(item => {
+    const query = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.mobile.includes(searchTerm) ||
-      (item.registration_no && item.registration_no.toString().includes(searchTerm));
+      !query ||
+      (item.name || '').toLowerCase().includes(query) ||
+      (item.mobile || '').includes(query) ||
+      (item.registration_no && item.registration_no.toString().includes(query)) ||
+      (item.size || '').toLowerCase().includes(query);
+    
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesSize = sizeFilter === 'All' || item.size === sizeFilter;
+
+    const matchesSize = sizeFilter === 'All' || 
+      (item.sizes && Number(item.sizes[sizeFilter]) > 0) ||
+      item.size === sizeFilter;
+
     return matchesSearch && matchesStatus && matchesSize;
   });
 
   // Calculate size counts based on FILTERED registrations for Vendor Bulk Printing Order
   const filteredSizeCounts = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => {
-    acc[sz] = filteredRegistrations.filter(r => r.size === sz).length;
+    acc[sz] = filteredRegistrations.reduce((count, r) => {
+      if (r.sizes && typeof r.sizes === 'object') {
+        return count + (Number(r.sizes[sz]) || 0);
+      }
+      if (Array.isArray(r.items) && r.items.length > 0) {
+        return count + r.items.filter(it => it.size === sz).length;
+      }
+      return count + (r.size === sz ? 1 : 0);
+    }, 0);
     return acc;
   }, {});
 
-  const totalFilteredPcs = filteredRegistrations.length;
+  const totalFilteredPcs = filteredRegistrations.reduce((sum, r) => {
+    if (r.sizes && typeof r.sizes === 'object' && Object.keys(r.sizes).length > 0) {
+      return sum + Object.values(r.sizes).reduce((a, b) => a + Number(b), 0);
+    }
+    if (Array.isArray(r.items) && r.items.length > 0) {
+      return sum + r.items.length;
+    }
+    return sum + (r.total_tshirts || 1);
+  }, 0);
+
   const totalCount = registrations.length;
   const pendingCount = registrations.filter(r => r.status === 'Pending').length;
   const acceptedCount = registrations.filter(r => r.status === 'Accepted').length;
   const deliveredCount = registrations.filter(r => r.status === 'Delivered').length;
 
-  // Export to CSV for T-Shirt Printing Vendor (Exports currently filtered data)
+  // Export to CSV for T-Shirt Printing Vendor
   const handleExportCSV = () => {
     if (filteredRegistrations.length === 0) {
       alert('No registration data matches the current filter to export.');
       return;
     }
 
-    const headers = ['Reg No', 'UUID ID', 'Date', 'Name', 'Mobile Number', 'T-Shirt Size', 'Payment Screenshot URL', 'Status'];
-    const rows = filteredRegistrations.map((r, idx) => [
-      r.registration_no || idx + 1,
-      r.id,
-      new Date(r.created_at).toLocaleDateString(),
-      `"${(r.name || '').replace(/"/g, '""')}"`,
-      `"${r.mobile}"`,
-      r.size,
-      `"${r.payment_screenshot_url || ''}"`,
-      r.status
-    ]);
+    const headers = ['Reg No', 'Contact Name', 'Mobile Number', 'Selected Sizes Summary', 'Total Order Shirts', 'Total Amount Paid (INR)', 'Payment Screenshot URL', 'Status', 'Date'];
+    
+    const rows = filteredRegistrations.map((r, idx) => {
+      const regNo = r.registration_no || idx + 1;
+      let sizesSummary = r.size;
+      if (r.sizes && typeof r.sizes === 'object') {
+        sizesSummary = Object.entries(r.sizes)
+          .filter(([_, qty]) => Number(qty) > 0)
+          .map(([sz, qty]) => `${sz} (x${qty})`)
+          .join(', ');
+      }
+
+      const totalTshirts = r.total_tshirts || (r.sizes ? Object.values(r.sizes).reduce((a, b) => a + Number(b), 0) : 1);
+      const totalAmt = r.total_amount || (totalTshirts * (settings.price || 250));
+
+      return [
+        regNo,
+        `"${(r.name || '').replace(/"/g, '""')}"`,
+        `"${r.mobile}"`,
+        `"${(sizesSummary || 'None').replace(/"/g, '""')}"`,
+        totalTshirts,
+        totalAmt,
+        `"${r.payment_screenshot_url || ''}"`,
+        r.status,
+        new Date(r.created_at).toLocaleDateString()
+      ];
+    });
 
     const csvContent = 'data:text/csv;charset=utf-8,' 
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
@@ -338,10 +380,20 @@ export const AdminPage = () => {
   // Open Edit Modal
   const handleOpenEditModal = (item) => {
     setEditingRegistration(item);
+    
+    const initialSizes = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {});
+    if (item.sizes && typeof item.sizes === 'object') {
+      Object.entries(item.sizes).forEach(([sz, qty]) => {
+        initialSizes[sz] = Number(qty) || 0;
+      });
+    } else if (item.size) {
+      initialSizes[item.size] = item.total_tshirts || 1;
+    }
+
     setEditForm({
       name: item.name || '',
       mobile: item.mobile || '',
-      size: item.size || '38 (S)',
+      sizes: initialSizes,
       status: item.status || 'Pending',
       payment_screenshot_url: item.payment_screenshot_url || ''
     });
@@ -361,6 +413,12 @@ export const AdminPage = () => {
       return;
     }
 
+    const totalTshirts = Object.values(editForm.sizes).reduce((a, b) => a + Number(b), 0);
+    if (totalTshirts === 0) {
+      setModalError('Please select at least 1 T-Shirt quantity.');
+      return;
+    }
+
     setModalLoading(true);
     setModalError('');
 
@@ -373,7 +431,9 @@ export const AdminPage = () => {
       const res = await updateRegistrationDetails(editingRegistration.id, {
         name: editForm.name,
         mobile: editForm.mobile,
-        size: editForm.size,
+        sizes: editForm.sizes,
+        total_tshirts: totalTshirts,
+        total_amount: totalTshirts * (settings.price || 250),
         status: editForm.status,
         payment_screenshot_url: screenshotUrl
       });
@@ -403,6 +463,12 @@ export const AdminPage = () => {
       return;
     }
 
+    const totalTshirts = Object.values(addForm.sizes).reduce((a, b) => a + Number(b), 0);
+    if (totalTshirts === 0) {
+      setModalError('Please select at least 1 T-Shirt quantity.');
+      return;
+    }
+
     setModalLoading(true);
     setModalError('');
 
@@ -415,7 +481,9 @@ export const AdminPage = () => {
       const res = await adminCreateRegistration({
         name: addForm.name,
         mobile: addForm.mobile,
-        size: addForm.size,
+        sizes: addForm.sizes,
+        total_tshirts: totalTshirts,
+        total_amount: totalTshirts * (settings.price || 250),
         status: addForm.status,
         payment_screenshot_url: screenshotUrl
       });
@@ -426,7 +494,7 @@ export const AdminPage = () => {
         setAddForm({
           name: '',
           mobile: '',
-          size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)',
+          sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
           status: 'Accepted',
           payment_screenshot_url: ''
         });
@@ -587,7 +655,7 @@ export const AdminPage = () => {
             </button>
 
             <button
-              onClick={handleLogout}
+              onClick={handleAdminLogout}
               className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-medium transition flex items-center gap-1.5"
               title="Lock Admin"
             >
@@ -746,9 +814,26 @@ export const AdminPage = () => {
                           <td className="p-3.5 font-bold text-amber-200">{item.name}</td>
                           <td className="p-3.5 font-mono text-slate-300">{item.mobile}</td>
                           <td className="p-3.5">
-                            <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-extrabold text-xs">
-                              {item.size}
-                            </span>
+                            {item.sizes && typeof item.sizes === 'object' && Object.keys(item.sizes).length > 0 ? (
+                              <div className="space-y-1">
+                                <span className="px-2 py-0.5 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 font-extrabold text-xs inline-block">
+                                  {item.total_tshirts || Object.values(item.sizes).reduce((a,b)=>a+Number(b),0)} T-Shirts (₹{item.total_amount || (item.total_tshirts || 1) * (settings.price || 250)})
+                                </span>
+                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                  {Object.entries(item.sizes)
+                                    .filter(([_, qty]) => Number(qty) > 0)
+                                    .map(([sz, qty]) => (
+                                      <span key={sz} className="px-2 py-0.5 rounded bg-[#080d19] border border-amber-500/20 text-[11px] text-slate-200">
+                                        <strong className="text-amber-400">{sz}</strong>: <span className="font-bold text-emerald-400">{qty} Pcs</span>
+                                      </span>
+                                    ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 font-extrabold text-xs">
+                                {item.size || 'N/A'}
+                              </span>
+                            )}
                           </td>
                           
                           {/* Payment Screenshot Thumbnail Column */}
@@ -1310,10 +1395,10 @@ export const AdminPage = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSaveAdd} className="space-y-4">
+              <form onSubmit={handleSaveAdd} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
                 <div>
                   <label className="block text-xs font-semibold text-amber-200 mb-1">
-                    Full Name <span className="text-rose-400">*</span>
+                    Primary Contact Name <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
@@ -1321,7 +1406,7 @@ export const AdminPage = () => {
                     onChange={(e) => setAddForm({ ...addForm, name: e.target.value })}
                     placeholder="e.g. Suresh Kumar"
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -1336,41 +1421,53 @@ export const AdminPage = () => {
                     onChange={(e) => setAddForm({ ...addForm, mobile: e.target.value })}
                     placeholder="10-digit mobile number"
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-200 mb-1">
-                      T-Shirt Size
-                    </label>
-                    <select
-                      value={addForm.size}
-                      onChange={(e) => setAddForm({ ...addForm, size: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
-                        <option key={sz} value={sz}>{sz}</option>
-                      ))}
-                    </select>
+                {/* Size Quantity Matrix for Add Modal */}
+                <div className="space-y-2 bg-[#080d19] p-3 rounded-2xl border border-amber-500/20">
+                  <div className="flex justify-between items-center text-xs font-bold text-amber-300 mb-1">
+                    <span>Select Size Quantities:</span>
+                    <span className="font-mono text-emerald-400">
+                      Total: {Object.values(addForm.sizes || {}).reduce((a, b) => a + Number(b), 0)} Pcs
+                    </span>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                      <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
+                        <span className="font-semibold text-slate-200">{sz}</span>
+                        <select
+                          value={addForm.sizes[sz] || 0}
+                          onChange={(e) => setAddForm({
+                            ...addForm,
+                            sizes: { ...addForm.sizes, [sz]: parseInt(e.target.value, 10) || 0 }
+                          })}
+                          className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
+                        >
+                          {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-200 mb-1">
-                      Initial Status
-                    </label>
-                    <select
-                      value={addForm.status}
-                      onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="Accepted">Accepted (Paid)</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Delivered">Delivered</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Initial Status
+                  </label>
+                  <select
+                    value={addForm.status}
+                    onChange={(e) => setAddForm({ ...addForm, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
+                  >
+                    <option value="Accepted">Accepted (Paid)</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
                 </div>
 
                 <div>
@@ -1444,17 +1541,17 @@ export const AdminPage = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSaveEdit} className="space-y-4">
+              <form onSubmit={handleSaveEdit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
                 <div>
                   <label className="block text-xs font-semibold text-amber-200 mb-1">
-                    Full Name <span className="text-rose-400">*</span>
+                    Primary Contact Name <span className="text-rose-400">*</span>
                   </label>
                   <input
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
@@ -1468,41 +1565,53 @@ export const AdminPage = () => {
                     value={editForm.mobile}
                     onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
                     required
-                    className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-200 mb-1">
-                      T-Shirt Size
-                    </label>
-                    <select
-                      value={editForm.size}
-                      onChange={(e) => setEditForm({ ...editForm, size: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
-                        <option key={sz} value={sz}>{sz}</option>
-                      ))}
-                    </select>
+                {/* Size Quantity Matrix for Edit Modal */}
+                <div className="space-y-2 bg-[#080d19] p-3 rounded-2xl border border-amber-500/20">
+                  <div className="flex justify-between items-center text-xs font-bold text-amber-300 mb-1">
+                    <span>Select Size Quantities:</span>
+                    <span className="font-mono text-emerald-400">
+                      Total: {Object.values(editForm.sizes || {}).reduce((a, b) => a + Number(b), 0)} Pcs
+                    </span>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                    {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                      <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
+                        <span className="font-semibold text-slate-200">{sz}</span>
+                        <select
+                          value={editForm.sizes[sz] || 0}
+                          onChange={(e) => setEditForm({
+                            ...editForm,
+                            sizes: { ...editForm.sizes, [sz]: parseInt(e.target.value, 10) || 0 }
+                          })}
+                          className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
+                        >
+                          {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                            <option key={n} value={n}>{n}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-amber-200 mb-1">
-                      Status
-                    </label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Delivered">Delivered</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Status
+                  </label>
+                  <select
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-400 cursor-pointer"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Accepted">Accepted (Paid)</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Rejected">Rejected</option>
+                  </select>
                 </div>
 
                 <div>

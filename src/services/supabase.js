@@ -13,6 +13,9 @@
  *   name TEXT NOT NULL,
  *   mobile TEXT NOT NULL,
  *   size TEXT NOT NULL,
+ *   items JSONB DEFAULT '[]'::jsonb,
+ *   total_tshirts INT DEFAULT 1,
+ *   total_amount NUMERIC DEFAULT 250,
  *   status TEXT DEFAULT 'Pending' NOT NULL
  * );
  * 
@@ -58,17 +61,27 @@ export const fetchRegistrations = async () => {
 };
 
 /**
- * Submit a new T-shirt registration directly to Supabase DB
+ * Submit a new T-shirt registration directly to Supabase DB (Size & Quantity Selection)
  */
-export const submitRegistration = async ({ name, mobile, size, payment_screenshot_url }) => {
+export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, payment_screenshot_url }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
 
+  // Format size summary string (e.g. "18 (x2), 38 (S) (x1)")
+  const sizesObj = sizes || {};
+  const sizeSummary = Object.entries(sizesObj)
+    .filter(([_, qty]) => qty > 0)
+    .map(([sz, qty]) => `${sz} (x${qty})`)
+    .join(', ') || 'None';
+
   const newEntry = {
     name: name.trim(),
     mobile: mobile.trim(),
-    size,
+    size: sizeSummary,
+    sizes: sizesObj,
+    total_tshirts: total_tshirts || 0,
+    total_amount: total_amount || 0,
     payment_screenshot_url: payment_screenshot_url || '',
     status: 'Pending'
   };
@@ -153,17 +166,26 @@ export const updateRegistrationStatus = async (id, status) => {
 };
 
 /**
- * Update full registration details (Name, Mobile, Size, Status, Screenshot URL)
+ * Update full registration details (Name, Mobile, Sizes, Status, Screenshot URL)
  */
-export const updateRegistrationDetails = async (id, { name, mobile, size, status, payment_screenshot_url }) => {
+export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
 
+  const sizesObj = sizes || {};
+  const sizeSummary = Object.entries(sizesObj)
+    .filter(([_, qty]) => qty > 0)
+    .map(([sz, qty]) => `${sz} (x${qty})`)
+    .join(', ') || 'None';
+
   const payload = {
     name: name.trim(),
     mobile: mobile.trim(),
-    size,
+    size: sizeSummary,
+    sizes: sizesObj,
+    total_tshirts: total_tshirts || 0,
+    total_amount: total_amount || 0,
     status: status || 'Pending',
     payment_screenshot_url: payment_screenshot_url || ''
   };
@@ -181,15 +203,24 @@ export const updateRegistrationDetails = async (id, { name, mobile, size, status
 /**
  * Admin direct registration entry (No payment screenshot or QR code required)
  */
-export const adminCreateRegistration = async ({ name, mobile, size, status, payment_screenshot_url }) => {
+export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
 
+  const sizesObj = sizes || {};
+  const sizeSummary = Object.entries(sizesObj)
+    .filter(([_, qty]) => qty > 0)
+    .map(([sz, qty]) => `${sz} (x${qty})`)
+    .join(', ') || 'None';
+
   const newEntry = {
     name: name.trim(),
     mobile: mobile.trim(),
-    size,
+    size: sizeSummary,
+    sizes: sizesObj,
+    total_tshirts: total_tshirts || 0,
+    total_amount: total_amount || 0,
     status: status || 'Accepted',
     payment_screenshot_url: payment_screenshot_url || ''
   };

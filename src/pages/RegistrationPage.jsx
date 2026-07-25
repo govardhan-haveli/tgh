@@ -14,7 +14,9 @@ import {
   X,
   IndianRupee,
   Loader2,
-  FileCheck
+  FileCheck,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
@@ -24,10 +26,17 @@ import { uploadToCloudinary } from '../services/cloudinary';
 import tshirtMockup from '../assets/tshirt-mockup.png';
 
 export const RegistrationPage = () => {
-  const [formData, setFormData] = useState({
+  const [primaryContact, setPrimaryContact] = useState({
     name: '',
-    mobile: '',
-    size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)'
+    mobile: ''
+  });
+
+  const [sizeQuantities, setSizeQuantities] = useState(() => {
+    const initial = {};
+    JANMASTHAMI_CONFIG.tshirtSizes.forEach(sz => {
+      initial[sz] = 0;
+    });
+    return initial;
   });
 
   const [paymentFile, setPaymentFile] = useState(null);
@@ -61,11 +70,20 @@ export const RegistrationPage = () => {
     loadSettings();
   }, []);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
+  const handleContactChange = (e) => {
+    setPrimaryContact({
+      ...primaryContact,
       [e.target.name]: e.target.value
     });
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const handleQuantityChange = (sz, qty) => {
+    const num = Math.max(0, parseInt(qty, 10) || 0);
+    setSizeQuantities(prev => ({
+      ...prev,
+      [sz]: num
+    }));
     if (errorMsg) setErrorMsg('');
   };
 
@@ -96,26 +114,34 @@ export const RegistrationPage = () => {
     }
   };
 
+  const totalTShirts = Object.values(sizeQuantities).reduce((a, b) => a + Number(b), 0);
+  const totalPayable = totalTShirts * (settings.price || 250);
+
+  const selectedSizesList = Object.entries(sizeQuantities)
+    .filter(([_, qty]) => qty > 0)
+    .map(([sz, qty]) => ({ size: sz, quantity: qty }));
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name.trim()) {
-      setErrorMsg('Please enter your full name.');
+    if (!primaryContact.name.trim()) {
+      setErrorMsg('Please enter your full name as the contact person.');
       return;
     }
     const mobileRegex = /^[0-9]{10}$/;
-    if (!mobileRegex.test(formData.mobile.trim())) {
+    if (!mobileRegex.test(primaryContact.mobile.trim())) {
       setErrorMsg('Please enter a valid 10-digit mobile number.');
       return;
     }
-    if (!formData.size) {
-      setErrorMsg('Please select a T-Shirt size.');
+
+    if (totalTShirts === 0) {
+      setErrorMsg('Please select a quantity (at least 1 T-Shirt) for your desired size.');
       return;
     }
 
     // MANDATORY FIELD: Payment Screenshot
     if (!paymentFile) {
-      setErrorMsg('Payment screenshot is mandatory. Please scan QR code, make payment, and upload screenshot.');
+      setErrorMsg(`Payment screenshot is mandatory. Please scan QR code, pay ₹${totalPayable}, and upload the screenshot.`);
       return;
     }
 
@@ -135,9 +161,11 @@ export const RegistrationPage = () => {
       // Step 2: Submit registration to Supabase
       setSubmitStatusText('Saving T-Shirt Registration...');
       const res = await submitRegistration({
-        name: formData.name,
-        mobile: formData.mobile,
-        size: formData.size,
+        name: primaryContact.name.trim(),
+        mobile: primaryContact.mobile.trim(),
+        sizes: sizeQuantities,
+        total_tshirts: totalTShirts,
+        total_amount: totalPayable,
         payment_screenshot_url: uploadedScreenshotUrl
       });
 
@@ -154,11 +182,10 @@ export const RegistrationPage = () => {
           origin: { y: 0.6 }
         });
 
-        setFormData({
-          name: '',
-          mobile: '',
-          size: JANMASTHAMI_CONFIG.tshirtSizes[1] || '38 (S)'
-        });
+        setPrimaryContact({ name: '', mobile: '' });
+        const resetQty = {};
+        JANMASTHAMI_CONFIG.tshirtSizes.forEach(sz => { resetQty[sz] = 0; });
+        setSizeQuantities(resetQty);
         handleRemoveFile();
       }
     } catch (err) {
@@ -196,7 +223,7 @@ export const RegistrationPage = () => {
             Janmashtami T-Shirt Registration
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-lg mx-auto leading-relaxed">
-            Fill in your details, view the T-shirt sample, scan the QR code to pay ₹{settings.price}, attach your payment screenshot, and register!
+            Select size quantities (₹{settings.price}/shirt), scan QR code to pay total amount, upload screenshot, and confirm!
           </p>
         </div>
 
@@ -212,7 +239,7 @@ export const RegistrationPage = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#0d1425] border border-amber-500/30 rounded-3xl p-6 sm:p-10 text-center space-y-4 shadow-2xl"
+            className="bg-[#0d1425] border border-amber-500/30 rounded-3xl p-6 sm:p-10 text-center space-y-5 shadow-2xl"
           >
             <div className="w-16 h-16 bg-emerald-500/20 border-2 border-emerald-400 rounded-full flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-500/20">
               <CheckCircle2 className="w-10 h-10" />
@@ -220,9 +247,32 @@ export const RegistrationPage = () => {
             <h2 className="text-xl sm:text-2xl font-bold text-slate-100 font-serif">
               Registration Confirmed!
             </h2>
-            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-xs mx-auto">
-              Thank you <strong className="text-amber-300">{submittedData.name}</strong>. Your T-shirt size <strong className="text-amber-400">({submittedData.size})</strong> has been registered with mobile <span className="text-slate-200">{submittedData.mobile}</span>. Payment screenshot uploaded successfully!
+            
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed max-w-md mx-auto">
+              Thank you <strong className="text-amber-300">{submittedData.name}</strong> (Mobile: <span className="text-slate-200">{submittedData.mobile}</span>). Your order for <strong className="text-amber-400">{submittedData.total_tshirts} T-Shirt(s)</strong> totaling <strong className="text-emerald-400">₹{submittedData.total_amount}</strong> has been received!
             </p>
+
+            {/* Detailed T-Shirt Breakdown */}
+            <div className="max-w-md mx-auto bg-[#080d19] border border-amber-500/20 rounded-2xl p-4 text-left space-y-2">
+              <div className="text-xs font-bold text-amber-300 border-b border-amber-500/20 pb-2 flex justify-between items-center">
+                <span>Selected Sizes & Quantity:</span>
+                <span className="bg-amber-500/10 px-2 py-0.5 rounded text-[11px] font-mono text-amber-400">{submittedData.total_tshirts} Pcs Total</span>
+              </div>
+              <div className="space-y-1.5 pt-1 max-h-48 overflow-y-auto pr-1">
+                {Object.entries(submittedData.sizes || {})
+                  .filter(([_, qty]) => qty > 0)
+                  .map(([sz, qty], idx) => (
+                    <div key={sz} className="flex justify-between items-center text-xs py-1 px-2.5 rounded-lg bg-[#0d1425]/60 border border-amber-500/10">
+                      <span className="font-medium text-slate-200">
+                        Size: <strong className="text-amber-300">{sz}</strong>
+                      </span>
+                      <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        {qty} Pc{qty > 1 ? 's' : ''} (₹{qty * settings.price})
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
 
             {submittedData.payment_screenshot_url && (
               <div className="mt-2 inline-block">
@@ -246,122 +296,164 @@ export const RegistrationPage = () => {
             <div className="pt-2">
               <button
                 onClick={() => setSubmittedData(null)}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition text-sm active:scale-95"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition text-sm active:scale-95 cursor-pointer"
               >
-                Register Another Person
+                Register More T-Shirts
               </button>
             </div>
           </motion.div>
         ) : (
-          /* Mobile-Optimized Step-by-Step Form Layout */
+          /* Mobile-Optimized Form Layout */
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            {/* STEP 1: User Personal Details (Name, Mobile, Size) -> order-1 */}
+            {/* STEP 1: Registrant & Size Quantity Matrix -> order-1 */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              className="order-1 lg:col-span-7 bg-[#0d1425] border border-amber-500/30 rounded-3xl p-5 sm:p-7 backdrop-blur-xl shadow-2xl space-y-4"
+              className="order-1 lg:col-span-7 bg-[#0d1425] border border-amber-500/30 rounded-3xl p-5 sm:p-7 backdrop-blur-xl shadow-2xl space-y-5"
             >
               <div className="flex items-center gap-2 border-b border-amber-500/20 pb-3">
                 <span className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">1</span>
                 <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider font-serif">
-                  Step 1: Enter Your Details
+                  Step 1: Contact Info & Size Quantities
                 </h3>
               </div>
 
-              {/* Full Name Input */}
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
-                  Full Name <span className="text-amber-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400/70">
-                    <User className="w-4 h-4 sm:w-5 sm:h-5" />
+              {/* Contact Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 bg-[#080d19] p-4 rounded-2xl border border-amber-500/20">
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Your Full Name <span className="text-amber-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-400/70">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      name="name"
+                      value={primaryContact.name}
+                      onChange={handleContactChange}
+                      placeholder="Enter full name"
+                      required
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#0d1425] border border-amber-500/30 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 text-xs sm:text-sm"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    placeholder="Enter full name"
-                    required
-                    className="w-full pl-10 sm:pl-11 pr-4 py-3 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 text-xs sm:text-sm"
-                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Mobile Number <span className="text-amber-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-amber-400/70">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      name="mobile"
+                      maxLength={10}
+                      value={primaryContact.mobile}
+                      onChange={handleContactChange}
+                      placeholder="10-digit mobile number"
+                      required
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#0d1425] border border-amber-500/30 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 text-xs sm:text-sm font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Mobile Number Input */}
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
-                  Mobile Number <span className="text-amber-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400/70">
-                    <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
+              {/* Sizes Quantity Selection List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Shirt className="w-4 h-4 text-amber-400" />
+                    <span>Select Quantity for Each Size:</span>
                   </div>
-                  <input
-                    type="tel"
-                    name="mobile"
-                    maxLength={10}
-                    value={formData.mobile}
-                    onChange={handleChange}
-                    placeholder="10-digit mobile number"
-                    required
-                    className="w-full pl-10 sm:pl-11 pr-4 py-3 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 text-xs sm:text-sm font-mono"
-                  />
+                  <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                    ₹{settings.price} per shirt
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-96 overflow-y-auto pr-1">
+                  {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => {
+                    const qty = sizeQuantities[sz] || 0;
+                    const isSelected = qty > 0;
+                    return (
+                      <div
+                        key={sz}
+                        className={`p-3 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border-amber-400 shadow-md shadow-amber-500/10'
+                            : 'bg-[#080d19] border-amber-500/20 hover:border-amber-500/40'
+                        }`}
+                      >
+                        <div>
+                          <div className="text-xs font-extrabold text-slate-100 flex items-center gap-1.5">
+                            <span>Size {sz}</span>
+                            {isSelected && (
+                              <span className="text-[10px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded">
+                                ₹{qty * settings.price}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {qty > 0 ? `${qty} shirt(s) selected` : 'Select quantity'}
+                          </div>
+                        </div>
+
+                        {/* Quantity Controls: Stepper Buttons & Dropdown */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(sz, qty - 1)}
+                            disabled={qty === 0}
+                            className="w-7 h-7 rounded-lg bg-[#0d1425] border border-amber-500/30 text-amber-300 flex items-center justify-center disabled:opacity-30 disabled:hover:bg-[#0d1425] hover:bg-amber-500/20 transition active:scale-95 cursor-pointer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+
+                          <select
+                            value={qty}
+                            onChange={(e) => handleQuantityChange(sz, e.target.value)}
+                            className="w-14 py-1 text-center bg-[#0d1425] border border-amber-500/40 rounded-lg text-xs font-bold text-amber-300 focus:outline-none cursor-pointer"
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map((num) => (
+                              <option key={num} value={num} className="bg-[#0d1425] text-slate-100">
+                                {num}
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            onClick={() => handleQuantityChange(sz, qty + 1)}
+                            className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center hover:bg-amber-500/30 transition active:scale-95 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Size Dropdown */}
-              <div>
-                <label className="block text-xs sm:text-sm font-semibold text-amber-200 mb-1.5">
-                  Select T-Shirt Size <span className="text-amber-500">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400/70">
-                    <Shirt className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <select
-                    name="size"
-                    value={formData.size}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 sm:pl-11 pr-4 py-3 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 focus:outline-none focus:border-amber-400 text-xs sm:text-sm cursor-pointer"
-                  >
-                    {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => (
-                      <option key={sz} value={sz} className="bg-[#0d1425] text-slate-100">
-                        {sz}
-                      </option>
-                    ))}
-                  </select>
+              {/* Real-time Order Summary Bar */}
+              <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex items-center justify-between text-xs sm:text-sm">
+                <div>
+                  <span className="text-slate-300">Total Quantity: </span>
+                  <strong className="text-amber-300 font-bold">{totalTShirts} T-Shirt{totalTShirts !== 1 ? 's' : ''}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-300">Total Payable: </span>
+                  <strong className="text-emerald-400 font-extrabold text-sm sm:text-base">₹{totalPayable}</strong>
                 </div>
               </div>
 
-              {/* Quick Select Size Pills */}
-              <div>
-                <div className="text-[11px] text-amber-400/80 mb-2 font-medium">
-                  Quick Size Selection:
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-36 overflow-y-auto pr-1">
-                  {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => (
-                    <button
-                      key={sz}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, size: sz })}
-                      className={`py-2 px-1 rounded-lg text-xs font-bold transition border active:scale-95 text-center ${
-                        formData.size === sz
-                          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md shadow-amber-500/20'
-                          : 'bg-[#080d19] text-amber-300 border-amber-500/20 hover:border-amber-500/50'
-                      }`}
-                    >
-                      {sz}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </motion.div>
 
-            {/* STEP 2: T-Shirt Sample & Payment QR Code Cards -> order-2 (placed in right col on desktop, middle on mobile) */}
+            {/* STEP 2: T-Shirt Sample & Payment QR Code Cards -> order-2 */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -381,17 +473,17 @@ export const RegistrationPage = () => {
 
                 <div className="mt-1.5 inline-flex items-center gap-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-base px-3.5 py-1 rounded-full shadow-md border border-amber-300">
                   <IndianRupee className="w-4 h-4 stroke-[3]" />
-                  <span>PRICE: ₹{settings.price}</span>
+                  <span>₹{settings.price} per T-Shirt</span>
                 </div>
 
                 <div className="my-4 relative flex justify-center w-full">
                   <img
                     src={samplePhoto}
                     alt="Goverdhan Haveli T-Shirt"
-                    className="max-h-56 object-contain rounded-2xl border border-amber-500/30 shadow-xl bg-[#080d19]/80"
+                    className="max-h-52 object-contain rounded-2xl border border-amber-500/30 shadow-xl bg-[#080d19]/80"
                   />
                   <div className="absolute bottom-2 right-4 bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full shadow-lg border border-amber-300">
-                    SIZE: {formData.size}
+                    {totalTShirts} T-Shirt{totalTShirts !== 1 ? 's' : ''} Selected
                   </div>
                 </div>
 
@@ -406,14 +498,14 @@ export const RegistrationPage = () => {
               <div className="bg-gradient-to-b from-[#0d1425] to-[#0a0f1d] border border-amber-500/30 rounded-3xl p-5 flex flex-col items-center text-center relative shadow-xl">
                 <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 mb-2">
                   <QrCode className="w-4 h-4 text-amber-400" />
-                  <span>Step 2: Scan & Pay</span>
+                  <span>Step 2: Scan & Pay Total</span>
                 </div>
 
-                <h4 className="text-sm sm:text-base font-bold text-slate-100">
-                  Scan & Pay ₹{settings.price}
+                <h4 className="text-sm sm:text-base font-extrabold text-amber-300">
+                  Scan & Pay Total ₹{totalPayable}
                 </h4>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  GPay, PhonePe, Paytm or any UPI app
+                  ₹{settings.price} × {totalTShirts} T-Shirt{totalTShirts !== 1 ? 's' : ''} via GPay, PhonePe, Paytm
                 </p>
 
                 <div className="my-3 p-2.5 bg-white rounded-2xl border-2 border-amber-400 shadow-xl flex items-center justify-center min-w-[160px] min-h-[160px]">
@@ -430,14 +522,14 @@ export const RegistrationPage = () => {
                         QR Code Pending Setup
                       </p>
                       <p className="text-[10px] text-slate-500">
-                        Pay ₹{settings.price} to Group Coordinator
+                        Pay ₹{totalPayable} to Group Coordinator
                       </p>
                     </div>
                   )}
                 </div>
 
                 <div className="w-full text-center text-[10px] sm:text-[11px] text-amber-300/90 bg-amber-500/10 p-2 rounded-xl border border-amber-500/20 font-medium">
-                  👇 After scanning and paying, attach your screenshot below!
+                  👇 After scanning and paying ₹{totalPayable}, attach your screenshot below!
                 </div>
               </div>
             </motion.div>
@@ -462,7 +554,7 @@ export const RegistrationPage = () => {
               </div>
 
               <p className="text-slate-400 text-xs leading-relaxed">
-                Attach the payment confirmation screenshot from GPay/PhonePe/Paytm after paying <strong className="text-amber-300">₹{settings.price}</strong>.
+                Attach the payment confirmation screenshot showing total payment of <strong className="text-emerald-400">₹{totalPayable}</strong>.
               </p>
 
               {paymentPreview ? (
@@ -490,7 +582,7 @@ export const RegistrationPage = () => {
                   <button
                     type="button"
                     onClick={handleRemoveFile}
-                    className="p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition"
+                    className="p-2 rounded-full bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 transition cursor-pointer"
                     title="Remove photo"
                   >
                     <X className="w-4 h-4" />
@@ -500,7 +592,7 @@ export const RegistrationPage = () => {
                 <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/40 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/60 hover:bg-amber-500/5 transition text-center group">
                   <Upload className="w-8 h-8 text-amber-400 group-hover:scale-110 transition mb-2" />
                   <span className="text-xs sm:text-sm font-bold text-amber-200">
-                    Click Here to Attach Payment Screenshot
+                    Click Here to Attach Payment Screenshot (₹{totalPayable})
                   </span>
                   <span className="text-[10px] text-slate-400 mt-0.5">
                     PNG, JPG, WEBP up to 10MB
@@ -531,7 +623,7 @@ export const RegistrationPage = () => {
                 ) : (
                   <>
                     <Send className="w-5 h-5 stroke-[2.5]" />
-                    <span>Submit T-Shirt Registration</span>
+                    <span>Submit T-Shirt Registration ({totalTShirts} T-Shirt{totalTShirts !== 1 ? 's' : ''} • ₹{totalPayable})</span>
                   </>
                 )}
               </button>
@@ -544,3 +636,4 @@ export const RegistrationPage = () => {
     </div>
   );
 };
+
