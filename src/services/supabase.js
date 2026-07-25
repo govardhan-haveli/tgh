@@ -61,11 +61,43 @@ export const fetchRegistrations = async () => {
 };
 
 /**
+ * Check if a mobile number is already registered
+ */
+export const checkMobileExists = async (mobile) => {
+  if (!supabase || !mobile) return false;
+  try {
+    const cleanMobile = mobile.trim();
+    const { data, error } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseTableName)
+      .select('id, name, registration_no')
+      .eq('mobile', cleanMobile)
+      .limit(1);
+
+    if (error) {
+      console.warn("Error checking mobile existence:", error.message);
+      return false;
+    }
+    return data && data.length > 0;
+  } catch (err) {
+    console.warn("Failed to check mobile duplicate:", err.message);
+    return false;
+  }
+};
+
+/**
  * Submit a new T-shirt registration directly to Supabase DB (Size & Quantity Selection)
  */
-export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, payment_screenshot_url }) => {
+export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, payment_screenshot_url, is_paid, payment_mode }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const cleanMobile = mobile.trim();
+
+  // Validate duplicate mobile number registration
+  const isDuplicate = await checkMobileExists(cleanMobile);
+  if (isDuplicate) {
+    throw new Error(`Mobile number ${cleanMobile} is already registered! Only 1 registration is allowed per mobile number.`);
   }
 
   // Format size summary string (e.g. "18 (x2), 38 (S) (x1)")
@@ -77,12 +109,14 @@ export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, t
 
   const newEntry = {
     name: name.trim(),
-    mobile: mobile.trim(),
+    mobile: cleanMobile,
     size: sizeSummary,
     sizes: sizesObj,
     total_tshirts: total_tshirts || 0,
     total_amount: total_amount || 0,
     payment_screenshot_url: payment_screenshot_url || '',
+    is_paid: is_paid ?? false,
+    payment_mode: payment_mode || 'Online',
     status: 'Pending'
   };
 
@@ -155,9 +189,15 @@ export const updateRegistrationStatus = async (id, status) => {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
 
+  // If status is changed to Accepted or Delivered, automatically mark as paid unless specified otherwise
+  const payload = { status };
+  if (status === 'Accepted' || status === 'Delivered') {
+    payload.is_paid = true;
+  }
+
   const { data, error } = await supabase
     .from(JANMASTHAMI_CONFIG.supabaseTableName)
-    .update({ status })
+    .update(payload)
     .eq('id', id)
     .select();
 
@@ -166,9 +206,31 @@ export const updateRegistrationStatus = async (id, status) => {
 };
 
 /**
- * Update full registration details (Name, Mobile, Sizes, Status, Screenshot URL)
+ * Update payment verified status and payment mode directly
  */
-export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url }) => {
+export const updatePaymentFields = async (id, { is_paid, payment_mode }) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const payload = {};
+  if (typeof is_paid === 'boolean') payload.is_paid = is_paid;
+  if (payment_mode) payload.payment_mode = payment_mode;
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseTableName)
+    .update(payload)
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
+ * Update full registration details (Name, Mobile, Sizes, Status, Screenshot URL, Payment status & type)
+ */
+export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
@@ -187,7 +249,9 @@ export const updateRegistrationDetails = async (id, { name, mobile, sizes, total
     total_tshirts: total_tshirts || 0,
     total_amount: total_amount || 0,
     status: status || 'Pending',
-    payment_screenshot_url: payment_screenshot_url || ''
+    payment_screenshot_url: payment_screenshot_url || '',
+    is_paid: is_paid ?? false,
+    payment_mode: payment_mode || 'Online'
   };
 
   const { data, error } = await supabase
@@ -203,7 +267,7 @@ export const updateRegistrationDetails = async (id, { name, mobile, sizes, total
 /**
  * Admin direct registration entry (No payment screenshot or QR code required)
  */
-export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url }) => {
+export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
@@ -222,7 +286,9 @@ export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshir
     total_tshirts: total_tshirts || 0,
     total_amount: total_amount || 0,
     status: status || 'Accepted',
-    payment_screenshot_url: payment_screenshot_url || ''
+    payment_screenshot_url: payment_screenshot_url || '',
+    is_paid: is_paid ?? true,
+    payment_mode: payment_mode || 'Cash'
   };
 
   const { data, error } = await supabase

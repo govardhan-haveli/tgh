@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { JANMASTHAMI_CONFIG } from '../data/data';
-import { submitRegistration, fetchTShirtSettings } from '../services/supabase';
+import { submitRegistration, fetchTShirtSettings, checkMobileExists } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
 import tshirtMockup from '../assets/tshirt-mockup.png';
 
@@ -69,10 +69,20 @@ export const TShirtForm = () => {
   }, []);
 
   const handleContactChange = (e) => {
-    setPrimaryContact({
-      ...primaryContact,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    if (name === 'mobile') {
+      // Enforce 10 digits only
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+      setPrimaryContact(prev => ({
+        ...prev,
+        mobile: digitsOnly
+      }));
+    } else {
+      setPrimaryContact(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
     if (errorMsg) setErrorMsg('');
   };
 
@@ -118,12 +128,14 @@ export const TShirtForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const cleanMobile = primaryContact.mobile.trim();
+
     if (!primaryContact.name.trim()) {
       setErrorMsg('Please enter your full name as contact person.');
       return;
     }
     const mobileRegex = /^[0-9]{10}$/;
-    if (!mobileRegex.test(primaryContact.mobile.trim())) {
+    if (!mobileRegex.test(cleanMobile)) {
       setErrorMsg('Please enter a valid 10-digit mobile number.');
       return;
     }
@@ -143,6 +155,13 @@ export const TShirtForm = () => {
     setErrorMsg('');
 
     try {
+      // Step 0: Check if mobile number is already registered
+      setSubmitStatusText('Checking mobile number registration status...');
+      const mobileExists = await checkMobileExists(cleanMobile);
+      if (mobileExists) {
+        throw new Error(`Mobile number ${cleanMobile} is already registered! Only 1 registration per mobile number is allowed.`);
+      }
+
       // Step 1: Upload Payment Screenshot to Cloudinary
       setSubmitStatusText('Uploading Payment Screenshot to Cloudinary...');
       let uploadedScreenshotUrl = '';
