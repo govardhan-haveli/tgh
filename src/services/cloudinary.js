@@ -4,7 +4,7 @@ export const uploadToCloudinary = async (file) => {
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
   if (!cloudName || !uploadPreset) {
-    throw new Error("Cloudinary credentials are not configured. Please set VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET in .env");
+    throw new Error("Image upload service is not configured. Please contact the administrator.");
   }
 
   const formData = new FormData();
@@ -18,8 +18,8 @@ export const uploadToCloudinary = async (file) => {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    console.error("Cloudinary upload response error:", errorData);
-    throw new Error(errorData.error?.message || "Failed to upload image to Cloudinary.");
+    console.error("Upload response error:", errorData);
+    throw new Error(errorData.error?.message || "Failed to upload image. Please try again.");
   }
 
   const data = await response.json();
@@ -27,7 +27,9 @@ export const uploadToCloudinary = async (file) => {
 };
 
 export const deleteFromCloudinary = async (fileUrl) => {
-  if (!fileUrl) return;
+  if (!fileUrl || typeof fileUrl !== 'string') return;
+  if (!fileUrl.includes('res.cloudinary.com')) return; // Only process Cloudinary URLs
+  
   const parts = fileUrl.split('/upload/');
   if (parts.length < 2) return;
   
@@ -63,10 +65,12 @@ export const deleteFromCloudinary = async (fileUrl) => {
   formData.append('signature', signature);
 
   try {
-    await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
       method: 'POST',
       body: formData
     });
+    const resData = await res.json().catch(() => ({}));
+    console.log("Cloudinary image delete response:", resData);
   } catch (error) {
     console.error("Cloudinary delete error:", error);
   }

@@ -44,7 +44,7 @@ import {
   updateInstagramReel,
   deleteInstagramReel
 } from '../services/supabase';
-import { uploadToCloudinary } from '../services/cloudinary';
+import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
 import { JANMASTHAMI_CONFIG } from '../data/data';
 
 export const AdminPage = () => {
@@ -238,6 +238,8 @@ export const AdminPage = () => {
         sample_image_url: res.data.sample_image_url || '',
         description: res.data.description || 'Goverdhan Haveli Official Janmashtami T-Shirt 2026'
       });
+      if (res.data.qr_code_url) setQrPreview(res.data.qr_code_url);
+      if (res.data.sample_image_url) setSamplePreview(res.data.sample_image_url);
     }
     setLoadingSettings(false);
   };
@@ -287,6 +289,10 @@ export const AdminPage = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this registration?")) return;
     try {
+      const regToDelete = registrations.find(r => r.id === id);
+      if (regToDelete && regToDelete.payment_screenshot_url) {
+        deleteFromCloudinary(regToDelete.payment_screenshot_url);
+      }
       await deleteRegistration(id);
       setRegistrations(prev => prev.filter(r => r.id !== id));
     } catch (err) {
@@ -464,9 +470,15 @@ export const AdminPage = () => {
     setModalError('');
 
     try {
+      const oldScreenshotUrl = editingRegistration?.payment_screenshot_url;
       let screenshotUrl = editForm.payment_screenshot_url;
+
       if (editFile) {
         screenshotUrl = await uploadToCloudinary(editFile);
+      }
+
+      if (oldScreenshotUrl && oldScreenshotUrl !== screenshotUrl) {
+        deleteFromCloudinary(oldScreenshotUrl);
       }
 
       const res = await updateRegistrationDetails(editingRegistration.id, {
@@ -561,20 +573,29 @@ export const AdminPage = () => {
     setSettingsMsg({ type: '', text: '' });
 
     try {
+      const oldQrUrl = settings.qr_code_url;
+      const oldSampleUrl = settings.sample_image_url;
+
       let finalQrUrl = settings.qr_code_url;
       let finalSampleUrl = settings.sample_image_url;
 
       if (qrFile) {
-        setSettingsMsg({ type: 'info', text: 'Uploading QR Code image to Cloudinary...' });
+        setSettingsMsg({ type: 'info', text: 'Uploading QR Code image...' });
         finalQrUrl = await uploadToCloudinary(qrFile);
+        if (oldQrUrl && oldQrUrl !== finalQrUrl) {
+          deleteFromCloudinary(oldQrUrl);
+        }
       }
 
       if (sampleFile) {
-        setSettingsMsg({ type: 'info', text: 'Uploading T-Shirt Sample image to Cloudinary...' });
+        setSettingsMsg({ type: 'info', text: 'Uploading T-Shirt Sample image...' });
         finalSampleUrl = await uploadToCloudinary(sampleFile);
+        if (oldSampleUrl && oldSampleUrl !== finalSampleUrl) {
+          deleteFromCloudinary(oldSampleUrl);
+        }
       }
 
-      setSettingsMsg({ type: 'info', text: 'Saving settings to Supabase DB...' });
+      setSettingsMsg({ type: 'info', text: 'Saving settings...' });
 
       const res = await updateTShirtSettings({
         price: settings.price,
@@ -590,6 +611,8 @@ export const AdminPage = () => {
           sample_image_url: res.data.sample_image_url,
           description: res.data.description
         });
+        setQrPreview(res.data.qr_code_url || '');
+        setSamplePreview(res.data.sample_image_url || '');
         setQrFile(null);
         setSampleFile(null);
         setSettingsMsg({ type: 'success', text: '✅ T-Shirt Settings updated successfully!' });
@@ -723,7 +746,7 @@ export const AdminPage = () => {
               </div>
 
               <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-yellow-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-yellow-400 uppercase tracking-wider">Pending Verification</div>
+                <div className="text-[11px] sm:text-xs font-medium text-yellow-400 uppercase tracking-wider">Under Review</div>
                 <div className="text-2xl sm:text-3xl font-black text-yellow-400 font-mono mt-1">{pendingCount}</div>
               </div>
 
@@ -802,7 +825,7 @@ export const AdminPage = () => {
                   >
                     <option value="All">All Statuses</option>
                     <option value="Accepted">Accepted Only</option>
-                    <option value="Pending">Pending Only</option>
+                    <option value="Pending">Under Review Only</option>
                     <option value="Delivered">Delivered Only</option>
                     <option value="Rejected">Rejected Only</option>
                   </select>
@@ -1078,7 +1101,7 @@ export const AdminPage = () => {
               {loadingSettings ? (
                 <div className="py-12 text-center text-slate-400 flex items-center justify-center gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-amber-400" />
-                  <span>Loading settings from Supabase...</span>
+                  <span>Loading settings...</span>
                 </div>
               ) : (
                 <form onSubmit={handleSaveSettings} className="space-y-6">
@@ -1110,14 +1133,14 @@ export const AdminPage = () => {
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                      <div className="sm:col-span-8 space-y-2">
-                        <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
-                          <Upload className="w-6 h-6 text-amber-400 group-hover:scale-110 transition mb-1" />
+                      <div className="sm:col-span-7">
+                        <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
+                          <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
                           <span className="text-xs font-bold text-amber-200">
-                            Upload New QR Code Image to Cloudinary
+                            Upload New QR Code Image
                           </span>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
-                            {qrFile ? `Selected: ${qrFile.name}` : 'Click to choose image file'}
+                          <span className="text-[10px] text-slate-400 mt-1">
+                            {qrFile ? `Selected File: ${qrFile.name}` : 'Click to select image file from computer'}
                           </span>
                           <input
                             type="file"
@@ -1132,34 +1155,44 @@ export const AdminPage = () => {
                             className="hidden"
                           />
                         </label>
-
-                        <div className="text-slate-400 text-xs">Or paste image URL directly:</div>
-                        <input
-                          type="url"
-                          value={settings.qr_code_url}
-                          onChange={(e) => {
-                            setSettings({ ...settings, qr_code_url: e.target.value });
-                            setQrPreview(e.target.value);
-                          }}
-                          placeholder="https://res.cloudinary.com/..."
-                          className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-400"
-                        />
                       </div>
 
-                      <div className="sm:col-span-4 flex flex-col items-center justify-center p-3 bg-white rounded-2xl border-2 border-amber-400">
-                        {qrPreview ? (
-                          <img
-                            src={qrPreview}
-                            alt="QR Preview"
-                            className="w-32 h-32 object-contain rounded"
-                          />
+                      <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-white rounded-2xl border-2 border-amber-400 shadow-md min-h-[160px]">
+                        {(qrPreview || settings.qr_code_url) ? (
+                          <div className="text-center space-y-2 w-full">
+                            <img
+                              src={qrPreview || settings.qr_code_url}
+                              alt="Current QR Code"
+                              className="w-32 h-32 object-contain rounded mx-auto"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                setQrPreview('');
+                              }}
+                            />
+                            <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
+                              <span className="text-[10px] font-bold text-slate-800 bg-amber-100 px-2 py-0.5 rounded">
+                                Attached QR Code
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setQrFile(null);
+                                  setQrPreview('');
+                                  setSettings(prev => ({ ...prev, qr_code_url: '' }));
+                                }}
+                                className="text-[10px] font-bold text-rose-600 hover:text-rose-800 underline cursor-pointer"
+                              >
+                                Clear Image
+                              </button>
+                            </div>
+                          </div>
                         ) : (
-                          <div className="text-center p-2">
+                          <div className="text-center p-3">
                             <QrCode className="w-12 h-12 text-slate-400 mx-auto" />
-                            <p className="text-[10px] text-slate-500 mt-1">No QR Code set</p>
+                            <p className="text-xs text-slate-600 font-semibold mt-1">No QR Code set</p>
+                            <p className="text-[10px] text-slate-400">Upload an image file using button on left</p>
                           </div>
                         )}
-                        <span className="text-[10px] font-bold text-slate-800 mt-1">QR Preview</span>
                       </div>
                     </div>
                   </div>
@@ -1171,14 +1204,14 @@ export const AdminPage = () => {
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                      <div className="sm:col-span-8 space-y-2">
-                        <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
-                          <Upload className="w-6 h-6 text-amber-400 group-hover:scale-110 transition mb-1" />
+                      <div className="sm:col-span-7">
+                        <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
+                          <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
                           <span className="text-xs font-bold text-amber-200">
-                            Upload New T-Shirt Sample Photo to Cloudinary
+                            Upload New T-Shirt Sample Photo
                           </span>
-                          <span className="text-[10px] text-slate-400 mt-0.5">
-                            {sampleFile ? `Selected: ${sampleFile.name}` : 'Click to choose image file'}
+                          <span className="text-[10px] text-slate-400 mt-1">
+                            {sampleFile ? `Selected File: ${sampleFile.name}` : 'Click to select image file from computer'}
                           </span>
                           <input
                             type="file"
@@ -1193,34 +1226,44 @@ export const AdminPage = () => {
                             className="hidden"
                           />
                         </label>
-
-                        <div className="text-slate-400 text-xs">Or paste image URL directly:</div>
-                        <input
-                          type="url"
-                          value={settings.sample_image_url}
-                          onChange={(e) => {
-                            setSettings({ ...settings, sample_image_url: e.target.value });
-                            setSamplePreview(e.target.value);
-                          }}
-                          placeholder="https://res.cloudinary.com/..."
-                          className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-400"
-                        />
                       </div>
 
-                      <div className="sm:col-span-4 flex flex-col items-center justify-center p-3 bg-[#080d19] rounded-2xl border border-amber-500/30">
-                        {samplePreview ? (
-                          <img
-                            src={samplePreview}
-                            alt="Sample Preview"
-                            className="w-32 h-32 object-contain rounded"
-                          />
+                      <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-[#080d19] rounded-2xl border border-amber-500/30 shadow-md min-h-[160px]">
+                        {(samplePreview || settings.sample_image_url) ? (
+                          <div className="text-center space-y-2 w-full">
+                            <img
+                              src={samplePreview || settings.sample_image_url}
+                              alt="Current Sample Mockup"
+                              className="w-32 h-32 object-contain rounded mx-auto border border-amber-400/40"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                setSamplePreview('');
+                              }}
+                            />
+                            <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
+                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                Attached Sample Mockup
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSampleFile(null);
+                                  setSamplePreview('');
+                                  setSettings(prev => ({ ...prev, sample_image_url: '' }));
+                                }}
+                                className="text-[10px] font-bold text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                              >
+                                Clear Image
+                              </button>
+                            </div>
+                          </div>
                         ) : (
-                          <div className="text-center p-2">
+                          <div className="text-center p-3">
                             <FileImage className="w-12 h-12 text-slate-500 mx-auto" />
-                            <p className="text-[10px] text-slate-500 mt-1">Mockup default</p>
+                            <p className="text-xs text-slate-400 font-semibold mt-1">No Sample Photo set</p>
+                            <p className="text-[10px] text-slate-500">Upload an image file using button on left</p>
                           </div>
                         )}
-                        <span className="text-[10px] font-bold text-amber-400 mt-1">Sample Preview</span>
                       </div>
                     </div>
                   </div>

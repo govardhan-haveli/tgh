@@ -31,6 +31,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { deleteFromCloudinary } from './cloudinary';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -48,7 +49,7 @@ export const supabase = (supabaseUrl && supabaseAnonKey)
  */
 export const fetchRegistrations = async () => {
   if (!supabase) {
-    throw new Error("Supabase client is not initialized. Please check your .env file.");
+    throw new Error("Service is temporarily unavailable. Please try again later.");
   }
 
   const { data, error } = await supabase
@@ -161,7 +162,27 @@ export const fetchTShirtSettings = async () => {
  */
 export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description }) => {
   if (!supabase) {
-    throw new Error("Supabase client is not initialized. Please check your .env file.");
+    throw new Error("Service is temporarily unavailable. Please try again later.");
+  }
+
+  // Delete replaced or cleared old QR & sample images from Cloudinary
+  try {
+    const { data: existing } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings')
+      .select('qr_code_url, sample_image_url')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (existing) {
+      if (existing.qr_code_url && existing.qr_code_url !== qr_code_url) {
+        deleteFromCloudinary(existing.qr_code_url);
+      }
+      if (existing.sample_image_url && existing.sample_image_url !== sample_image_url) {
+        deleteFromCloudinary(existing.sample_image_url);
+      }
+    }
+  } catch (err) {
+    console.warn("Could not check/delete old settings images:", err);
   }
 
   const payload = {
@@ -232,7 +253,26 @@ export const updatePaymentFields = async (id, { is_paid, payment_mode }) => {
  */
 export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
   if (!supabase) {
-    throw new Error("Supabase client is not initialized. Please check your .env file.");
+    throw new Error("Service is temporarily unavailable. Please try again later.");
+  }
+
+  // Delete replaced or cleared old screenshot from Cloudinary
+  try {
+    const { data: existing } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseTableName)
+      .select('payment_screenshot_url')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existing && existing.payment_screenshot_url) {
+      const oldUrl = existing.payment_screenshot_url;
+      const newUrl = payment_screenshot_url || '';
+      if (oldUrl !== newUrl) {
+        deleteFromCloudinary(oldUrl);
+      }
+    }
+  } catch (err) {
+    console.warn("Could not check/delete old Cloudinary image on registration update:", err);
   }
 
   const sizesObj = sizes || {};
@@ -269,7 +309,7 @@ export const updateRegistrationDetails = async (id, { name, mobile, sizes, total
  */
 export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
   if (!supabase) {
-    throw new Error("Supabase client is not initialized. Please check your .env file.");
+    throw new Error("Service is temporarily unavailable. Please try again later.");
   }
 
   const sizesObj = sizes || {};
@@ -305,7 +345,22 @@ export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshir
  */
 export const deleteRegistration = async (id) => {
   if (!supabase) {
-    throw new Error("Supabase client is not initialized. Please check your .env file.");
+    throw new Error("Service is temporarily unavailable. Please try again later.");
+  }
+
+  // Delete associated payment screenshot from Cloudinary before deleting database record
+  try {
+    const { data: existing } = await supabase
+      .from(JANMASTHAMI_CONFIG.supabaseTableName)
+      .select('payment_screenshot_url')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (existing && existing.payment_screenshot_url) {
+      deleteFromCloudinary(existing.payment_screenshot_url);
+    }
+  } catch (err) {
+    console.warn("Could not check/delete Cloudinary image before record deletion:", err);
   }
 
   const { error } = await supabase

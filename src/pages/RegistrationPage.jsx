@@ -149,13 +149,13 @@ export const RegistrationPage = () => {
     setErrorMsg('');
 
     try {
-      // Step 1: Upload Payment Screenshot to Cloudinary
-      setSubmitStatusText('Uploading Payment Screenshot to Cloudinary...');
+      // Step 1: Upload Payment Screenshot
+      setSubmitStatusText('Uploading Payment Screenshot...');
       let uploadedScreenshotUrl = '';
       try {
         uploadedScreenshotUrl = await uploadToCloudinary(paymentFile);
       } catch (uploadErr) {
-        throw new Error(`Cloudinary upload failed: ${uploadErr.message}`);
+        throw new Error(`Payment screenshot upload failed: ${uploadErr.message}`);
       }
 
       // Step 2: Submit registration to Supabase
@@ -288,9 +288,8 @@ export const RegistrationPage = () => {
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 block text-[11px] sm:text-xs text-amber-300 max-w-xs mx-auto">
-              Status: <span className="font-bold uppercase tracking-wider">{submittedData.status || 'Pending'}</span>
-              {submittedData.source === 'supabase' ? ' • Saved in Supabase DB' : ' • Saved locally'}
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 block text-[11px] sm:text-xs text-amber-300 max-w-xs mx-auto font-medium">
+              Registration Status: <span className="font-bold uppercase tracking-wider text-amber-200">{submittedData.status === 'Accepted' ? 'Accepted & Confirmed' : 'Submitted (Under Review)'}</span>
             </div>
 
             <div className="pt-2">
@@ -519,7 +518,7 @@ export const RegistrationPage = () => {
                     <div className="text-center p-3">
                       <QrCode className="w-12 h-12 text-slate-400 mx-auto mb-1" />
                       <p className="text-xs text-slate-600 font-semibold">
-                        QR Code Pending Setup
+                        Payment QR Code Not Uploaded Yet
                       </p>
                       <p className="text-[10px] text-slate-500">
                         Pay ₹{totalPayable} to Group Coordinator
