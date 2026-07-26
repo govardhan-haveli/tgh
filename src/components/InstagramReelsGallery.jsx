@@ -58,14 +58,35 @@ export const InstagramReelsGallery = () => {
   }, []);
 
   const handleScrollLeft = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: -310, behavior: 'smooth' });
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const cards = Array.from(container.children);
+    if (!cards.length) return;
+
+    const currentScroll = container.scrollLeft;
+    for (let i = cards.length - 1; i >= 0; i--) {
+      const cardLeft = cards[i].offsetLeft - container.offsetLeft;
+      if (cardLeft < currentScroll - 10) {
+        container.scrollTo({ left: cardLeft, behavior: 'smooth' });
+        return;
+      }
     }
+    container.scrollTo({ left: 0, behavior: 'smooth' });
   };
 
   const handleScrollRight = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollBy({ left: 310, behavior: 'smooth' });
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const cards = Array.from(container.children);
+    if (!cards.length) return;
+
+    const currentScroll = container.scrollLeft;
+    for (let i = 0; i < cards.length; i++) {
+      const cardLeft = cards[i].offsetLeft - container.offsetLeft;
+      if (cardLeft > currentScroll + 10) {
+        container.scrollTo({ left: cardLeft, behavior: 'smooth' });
+        return;
+      }
     }
   };
 
@@ -115,7 +136,7 @@ export const InstagramReelsGallery = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 whileHover={{ y: -5 }}
-                className="min-w-[285px] sm:min-w-[300px] md:min-w-0 w-full snap-center bg-[#0d1425] border border-pink-500/30 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between group transition duration-300 relative flex-shrink-0 md:flex-shrink"
+                className="min-w-[285px] sm:min-w-[300px] md:min-w-0 w-full snap-start bg-[#0d1425] border border-pink-500/30 rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between group transition duration-300 relative flex-shrink-0 md:flex-shrink"
               >
                 {/* Reel Header */}
                 <div className="p-3 bg-gradient-to-r from-[#0d1425] via-[#080d19] to-[#0d1425] border-b border-pink-500/20 flex items-center justify-between">
@@ -205,7 +226,7 @@ export const InstagramReelsGallery = () => {
         </div>
 
         {/* Mobile Swipe Notice & Interactive Prev / Next Navigation Buttons */}
-        <div className="flex items-center justify-between sm:justify-center gap-3 pt-2">
+        <div className="flex items-center justify-between sm:justify-center gap-3 pt-2 md:hidden">
           <button
             type="button"
             onClick={handleScrollLeft}
