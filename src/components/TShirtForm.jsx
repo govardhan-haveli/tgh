@@ -307,6 +307,71 @@ export const TShirtForm = () => {
           /* Mobile-Optimized Form Layout */
           <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
+            {/* UNIFORM SAMPLE REVIEW - COMES FIRST BEFORE STEP 1 */}
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="lg:col-span-12 bg-gradient-to-r from-[#0d1425] via-[#0f172a] to-[#0d1425] border-2 border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-amber-200 font-serif tracking-wide">
+                      Uniform Sample Review & Specifications
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400">
+                      Review the official Janmashtami T-shirt mockup, fabric details, and price before ordering
+                    </p>
+                  </div>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-sm px-4 py-1.5 rounded-full shadow-lg border border-amber-300 self-start sm:self-auto">
+                  <IndianRupee className="w-4 h-4 stroke-[3]" />
+                  <span>₹{settings.price} per T-Shirt</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
+                {/* Mockup Image Container */}
+                <div className="md:col-span-4 flex flex-col items-center justify-center p-3 bg-[#080d19] rounded-2xl border border-amber-500/20 relative">
+                  <img
+                    src={samplePhoto}
+                    alt="Goverdhan Haveli T-Shirt"
+                    className="max-h-52 object-contain rounded-xl shadow-xl hover:scale-105 transition duration-300"
+                  />
+                  <span className="mt-2 text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-3 py-0.5 rounded-full border border-amber-500/30">
+                    Official Mahotsav 2026 Uniform
+                  </span>
+                </div>
+
+                {/* Details & Specifications */}
+                <div className="md:col-span-8 space-y-3 text-left">
+                  <div className="space-y-1">
+                    <h4 className="text-base sm:text-lg font-bold text-slate-100 font-serif">
+                      Goverdhan Haveli Official T-Shirt
+                    </h4>
+                    <p className="text-xs text-slate-300 leading-relaxed bg-[#080d19] p-3 rounded-xl border border-amber-500/20">
+                      {settings.description || "Goverdhan Haveli Official Janmashtami T-Shirt 2026 with high quality print and comfortable fabric."}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-[#080d19] border border-amber-500/20 text-slate-300 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>Premium Cotton Blend Fabric</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-[#080d19] border border-amber-500/20 text-slate-300 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                      <span>Dahi Handi Special Group Print</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
             {/* STEP 1: Contact Details & Size Quantity Matrix -> order-1 */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
@@ -487,45 +552,13 @@ export const TShirtForm = () => {
             </motion.div>
 
             {/* STEP 2: T-Shirt Sample & Payment QR Code Cards -> order-2 */}
+            {/* STEP 2: Payment QR Code & Screenshot Upload Cards -> order-2 */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="order-2 lg:col-span-5 lg:row-span-3 space-y-5"
+              className="order-2 lg:col-span-5 space-y-5"
             >
-              {/* Sample Photo & Price Card */}
-              <div className="bg-gradient-to-b from-[#0d1425] to-[#0a0f1d] border border-amber-500/20 rounded-3xl p-5 flex flex-col items-center text-center relative overflow-hidden shadow-xl">
-                <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 mb-2">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Uniform Sample Preview</span>
-                </div>
-
-                <h3 className="text-lg font-bold text-slate-100 font-serif">
-                  Goverdhan Haveli Official T-Shirt
-                </h3>
-
-                <div className="mt-1.5 inline-flex items-center gap-1 bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black text-base px-3.5 py-1 rounded-full shadow-md border border-amber-300">
-                  <IndianRupee className="w-4 h-4 stroke-[3]" />
-                  <span>₹{settings.price} per T-Shirt</span>
-                </div>
-
-                <div className="my-4 relative flex justify-center w-full">
-                  <img
-                    src={samplePhoto}
-                    alt="Goverdhan Haveli T-Shirt"
-                    className="max-h-52 object-contain rounded-2xl border border-amber-500/30 shadow-xl bg-[#080d19]/80"
-                  />
-                  <div className="absolute bottom-2 right-4 bg-amber-500 text-slate-950 font-black text-xs px-3 py-1 rounded-full shadow-lg border border-amber-300">
-                    {totalTShirts} T-Shirt{totalTShirts !== 1 ? 's' : ''} Selected
-                  </div>
-                </div>
-
-                {settings.description && (
-                  <p className="text-xs text-slate-300 bg-[#080d19]/80 p-2.5 rounded-xl border border-amber-500/20 w-full text-left">
-                    {settings.description}
-                  </p>
-                )}
-              </div>
 
               {/* Dynamic Payment QR Code Card */}
               <div className="bg-gradient-to-b from-[#0d1425] to-[#0a0f1d] border border-amber-500/30 rounded-3xl p-5 flex flex-col items-center text-center relative shadow-xl">
