@@ -6,6 +6,7 @@ import { CountdownTimer } from '../components/CountdownTimer';
 import { MediaGallery } from '../components/MediaGallery';
 import { VideoGallery } from '../components/VideoGallery';
 import { InstagramReelsGallery } from '../components/InstagramReelsGallery';
+import { DahiHandiKrishna3DSection } from '../components/DahiHandiKrishna3DSection';
 import { JANMASTHAMI_CONFIG } from '../data/data';
 import logoImg from '../assets/logo.png';
 import heroBannerImg from '../assets/hero-banner.jpg';
@@ -110,6 +111,9 @@ export const HomePage = () => {
 
       {/* Video Gallery */}
       <VideoGallery />
+
+      {/* 3D Bal Krishna Dahi Handi Mahotsav Interactive Section */}
+      <DahiHandiKrishna3DSection />
 
     </div>
   );
