@@ -187,7 +187,11 @@ export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_ur
 
   let normalizedSizes = tshirt_sizes;
   if (typeof tshirt_sizes === 'string') {
-    normalizedSizes = tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
+    try {
+      normalizedSizes = JSON.parse(tshirt_sizes);
+    } catch (e) {
+      normalizedSizes = tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
+    }
   }
 
   const payload = {

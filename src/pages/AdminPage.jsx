@@ -47,8 +47,45 @@ import {
   deleteInstagramReel
 } from '../services/supabase';
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
-import { JANMASTHAMI_CONFIG } from '../data/data';
+import { JANMASTHAMI_CONFIG, DEFAULT_TSHIRT_SIZES, formatSizeKey } from '../data/data';
 import { useSettings } from '../context/SettingsContext';
+
+const getSzKey = (sz) => typeof sz === 'object' ? formatSizeKey(sz) : String(sz);
+
+const parseSizesToObjects = (raw) => {
+  if (Array.isArray(raw)) {
+    return raw.map(item => {
+      if (typeof item === 'object' && item !== null && item.size) {
+        return {
+          size: String(item.size),
+          label: String(item.label || ''),
+          width: String(item.width || ''),
+          length: String(item.length || ''),
+          year: String(item.year || '')
+        };
+      }
+      const str = String(item).trim();
+      const match = str.match(/^(\d+)\s*(?:\(([^)]+)\))?$/);
+      if (match) {
+        return { size: match[1], label: match[2] || '', width: '', length: '', year: '' };
+      }
+      return { size: str, label: '', width: '', length: '', year: '' };
+    });
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parseSizesToObjects(parsed);
+    } catch (e) {}
+    return raw.split(',').map(s => s.trim()).filter(Boolean).map(s => {
+      const match = s.match(/^(\d+)\s*(?:\(([^)]+)\))?$/);
+      if (match) return { size: match[1], label: match[2] || '', width: '', length: '', year: '' };
+      return { size: s, label: '', width: '', length: '', year: '' };
+    });
+  }
+  return DEFAULT_TSHIRT_SIZES;
+};
+
 const formatToDatetimeLocal = (dateStr) => {
   if (!dateStr) return '';
   try {
@@ -93,7 +130,7 @@ export const AdminPage = () => {
   const [addForm, setAddForm] = useState({
     name: '',
     mobile: '',
-    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
+    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [getSzKey(sz)]: 0 }), {}),
     status: 'Accepted',
     is_paid: true,
     payment_mode: 'Cash',
@@ -105,7 +142,7 @@ export const AdminPage = () => {
   const [editForm, setEditForm] = useState({
     name: '',
     mobile: '',
-    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
+    sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [getSzKey(sz)]: 0 }), {}),
     status: 'Pending',
     is_paid: false,
     payment_mode: 'Online',
@@ -119,7 +156,7 @@ export const AdminPage = () => {
     tagline: JANMASTHAMI_CONFIG.tagline,
     location: JANMASTHAMI_CONFIG.location,
     target_date: JANMASTHAMI_CONFIG.targetDate,
-    tshirt_sizes: JANMASTHAMI_CONFIG.tshirtSizes.join(', '),
+    tshirt_sizes: DEFAULT_TSHIRT_SIZES,
     price: 250,
     qr_code_url: '',
     sample_image_url: '',
@@ -252,26 +289,14 @@ export const AdminPage = () => {
     setLoadingSettings(true);
     const res = await fetchTShirtSettings();
     if (res.data) {
-      let sizesStr = JANMASTHAMI_CONFIG.tshirtSizes.join(', ');
-      if (res.data.tshirt_sizes) {
-        if (Array.isArray(res.data.tshirt_sizes)) {
-          sizesStr = res.data.tshirt_sizes.join(', ');
-        } else if (typeof res.data.tshirt_sizes === 'string') {
-          try {
-            const parsed = JSON.parse(res.data.tshirt_sizes);
-            sizesStr = Array.isArray(parsed) ? parsed.join(', ') : res.data.tshirt_sizes;
-          } catch (e) {
-            sizesStr = res.data.tshirt_sizes;
-          }
-        }
-      }
+      const parsedSizes = parseSizesToObjects(res.data.tshirt_sizes || DEFAULT_TSHIRT_SIZES);
 
       setSettings({
         group_name: res.data.group_name || JANMASTHAMI_CONFIG.groupName,
         tagline: res.data.tagline || JANMASTHAMI_CONFIG.tagline,
         location: res.data.location || JANMASTHAMI_CONFIG.location,
         target_date: res.data.target_date || JANMASTHAMI_CONFIG.targetDate,
-        tshirt_sizes: sizesStr,
+        tshirt_sizes: parsedSizes.length > 0 ? parsedSizes : DEFAULT_TSHIRT_SIZES,
         price: res.data.price || 250,
         qr_code_url: res.data.qr_code_url || '',
         sample_image_url: res.data.sample_image_url || '',
@@ -389,14 +414,16 @@ export const AdminPage = () => {
 
   // Calculate size counts based on FILTERED registrations for Vendor Bulk Printing Order
   const filteredSizeCounts = activeSizes.reduce((acc, sz) => {
-    acc[sz] = filteredRegistrations.reduce((count, r) => {
+    const key = getSzKey(sz);
+    const sizeNo = typeof sz === 'object' ? String(sz.size) : String(sz);
+    acc[key] = filteredRegistrations.reduce((count, r) => {
       if (r.sizes && typeof r.sizes === 'object') {
-        return count + (Number(r.sizes[sz]) || 0);
+        return count + (Number(r.sizes[key]) || Number(r.sizes[sizeNo]) || 0);
       }
       if (Array.isArray(r.items) && r.items.length > 0) {
-        return count + r.items.filter(it => it.size === sz).length;
+        return count + r.items.filter(it => it.size === key || it.size === sizeNo).length;
       }
-      return count + (r.size === sz ? 1 : 0);
+      return count + (r.size === key || r.size === sizeNo ? 1 : 0);
     }, 0);
     return acc;
   }, {});
@@ -469,7 +496,7 @@ export const AdminPage = () => {
   const handleOpenEditModal = (item) => {
     setEditingRegistration(item);
     
-    const initialSizes = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {});
+    const initialSizes = activeSizes.reduce((acc, sz) => ({ ...acc, [getSzKey(sz)]: 0 }), {});
     if (item.sizes && typeof item.sizes === 'object') {
       Object.entries(item.sizes).forEach(([sz, qty]) => {
         initialSizes[sz] = Number(qty) || 0;
@@ -594,7 +621,7 @@ export const AdminPage = () => {
         setAddForm({
           name: '',
           mobile: '',
-          sizes: JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => ({ ...acc, [sz]: 0 }), {}),
+          sizes: activeSizes.reduce((acc, sz) => ({ ...acc, [getSzKey(sz)]: 0 }), {}),
           status: 'Accepted',
           is_paid: true,
           payment_mode: 'Cash',
@@ -653,17 +680,14 @@ export const AdminPage = () => {
       });
 
       if (res.success) {
-        let sizesStr = JANMASTHAMI_CONFIG.tshirtSizes.join(', ');
-        if (res.data.tshirt_sizes) {
-          sizesStr = Array.isArray(res.data.tshirt_sizes) ? res.data.tshirt_sizes.join(', ') : String(res.data.tshirt_sizes);
-        }
+        const savedSizes = parseSizesToObjects(res.data.tshirt_sizes || settings.tshirt_sizes);
 
         setSettings({
           group_name: res.data.group_name,
           tagline: res.data.tagline,
           location: res.data.location,
           target_date: res.data.target_date,
-          tshirt_sizes: sizesStr,
+          tshirt_sizes: savedSizes,
           price: res.data.price,
           qr_code_url: res.data.qr_code_url,
           sample_image_url: res.data.sample_image_url,
@@ -840,21 +864,29 @@ export const AdminPage = () => {
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
-                {activeSizes.map((sz) => (
-                  <div
-                    key={sz}
-                    className={`p-2.5 rounded-xl border transition text-center ${
-                      filteredSizeCounts[sz] > 0
-                        ? 'bg-amber-500/10 border-amber-500/40'
-                        : 'bg-[#080d19] border-amber-500/10 opacity-60'
-                    }`}
-                  >
-                    <div className="text-[11px] font-bold text-amber-400 truncate">{sz}</div>
-                    <div className="text-lg font-mono font-bold text-slate-100 mt-0.5">
-                      {filteredSizeCounts[sz]} Pcs
+                {activeSizes.map((sz) => {
+                  const szKey = getSzKey(sz);
+                  const sizeNo = typeof sz === 'object' ? sz.size : String(sz);
+                  const label = typeof sz === 'object' ? sz.label : '';
+                  const count = filteredSizeCounts[szKey] || 0;
+                  return (
+                    <div
+                      key={szKey}
+                      className={`p-2.5 rounded-xl border transition text-center ${
+                        count > 0
+                          ? 'bg-amber-500/10 border-amber-500/40'
+                          : 'bg-[#080d19] border-amber-500/10 opacity-60'
+                      }`}
+                    >
+                      <div className="text-[11px] font-bold text-amber-400 truncate">
+                        Size {sizeNo}{label ? ` (${label})` : ''}
+                      </div>
+                      <div className="text-lg font-mono font-bold text-slate-100 mt-0.5">
+                        {count} Pcs
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -924,9 +956,16 @@ export const AdminPage = () => {
                     className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none cursor-pointer"
                   >
                     <option value="All">All Sizes</option>
-                    {activeSizes.map(sz => (
-                      <option key={sz} value={sz}>{sz}</option>
-                    ))}
+                    {activeSizes.map(sz => {
+                      const szKey = getSzKey(sz);
+                      const sizeNo = typeof sz === 'object' ? sz.size : String(sz);
+                      const label = typeof sz === 'object' ? sz.label : '';
+                      return (
+                        <option key={szKey} value={szKey}>
+                          Size {sizeNo}{label ? ` (${label})` : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -1261,7 +1300,7 @@ export const AdminPage = () => {
                       T-Shirt Price & Size Management
                     </h3>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
                       {/* Field: T-Shirt Price */}
                       <div className="sm:col-span-4">
                         <label className="block text-xs font-bold text-amber-200 mb-1.5">
@@ -1282,20 +1321,129 @@ export const AdminPage = () => {
                         </div>
                       </div>
 
-                      {/* Field: Available T-Shirt Sizes */}
-                      <div className="sm:col-span-8">
-                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
-                          Available T-Shirt Sizes (Comma-separated)
-                        </label>
-                        <input
-                          type="text"
-                          value={settings.tshirt_sizes || ''}
-                          onChange={(e) => setSettings({ ...settings, tshirt_sizes: e.target.value })}
-                          placeholder="18, 20, 22, 24, 26, 28, 30, 32, 34, 36 (XS), 38 (S), 40 (M), 42 (L), 44 (XL)"
-                          required
-                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-1">Separate size options with commas. These appear in registration forms.</p>
+                      {/* Dynamic T-Shirt Sizes Table Editor */}
+                      <div className="sm:col-span-12 space-y-3 pt-2">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-amber-200">
+                            Dynamic T-Shirt Sizes & Measurement List ({(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes)).length} Sizes Configured)
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const current = Array.isArray(settings.tshirt_sizes) ? [...settings.tshirt_sizes] : parseSizesToObjects(settings.tshirt_sizes);
+                              setSettings({
+                                ...settings,
+                                tshirt_sizes: [...current, { size: '', label: '', width: '', length: '', year: '' }]
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-extrabold flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add New Size</span>
+                          </button>
+                        </div>
+
+                        <div className="rounded-2xl border border-amber-500/30 overflow-hidden bg-[#080d19]">
+                          <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                            <table className="w-full text-left text-xs">
+                              <thead className="sticky top-0 bg-[#070b14] text-amber-300 font-extrabold border-b border-amber-500/30 uppercase z-10">
+                                <tr>
+                                  <th className="p-2.5">Size No</th>
+                                  <th className="p-2.5">Label (e.g. S, M)</th>
+                                  <th className="p-2.5">Width (in)</th>
+                                  <th className="p-2.5">Length (in)</th>
+                                  <th className="p-2.5">Age / Year</th>
+                                  <th className="p-2.5 text-center">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-amber-500/10 font-mono">
+                                {(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes)).map((szObj, idx) => (
+                                  <tr key={idx} className="hover:bg-amber-500/5 transition">
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={szObj.size || ''}
+                                        onChange={(e) => {
+                                          const updated = [...(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes))];
+                                          updated[idx] = { ...updated[idx], size: e.target.value };
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        placeholder="18"
+                                        className="w-16 px-2 py-1 bg-[#0d1425] border border-amber-500/30 rounded-lg text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={szObj.label || ''}
+                                        onChange={(e) => {
+                                          const updated = [...(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes))];
+                                          updated[idx] = { ...updated[idx], label: e.target.value };
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        placeholder="XS"
+                                        className="w-16 px-2 py-1 bg-[#0d1425] border border-amber-500/30 rounded-lg text-xs font-bold text-yellow-300 focus:outline-none focus:border-amber-400"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={szObj.width || ''}
+                                        onChange={(e) => {
+                                          const updated = [...(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes))];
+                                          updated[idx] = { ...updated[idx], width: e.target.value };
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        placeholder="10.5"
+                                        className="w-20 px-2 py-1 bg-[#0d1425] border border-amber-500/30 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={szObj.length || ''}
+                                        onChange={(e) => {
+                                          const updated = [...(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes))];
+                                          updated[idx] = { ...updated[idx], length: e.target.value };
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        placeholder="16"
+                                        className="w-20 px-2 py-1 bg-[#0d1425] border border-amber-500/30 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={szObj.year || ''}
+                                        onChange={(e) => {
+                                          const updated = [...(Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes))];
+                                          updated[idx] = { ...updated[idx], year: e.target.value };
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        placeholder="06-01"
+                                        className="w-28 px-2 py-1 bg-[#0d1425] border border-amber-500/30 rounded-lg text-xs font-sans text-amber-200 focus:outline-none focus:border-amber-400"
+                                      />
+                                    </td>
+                                    <td className="p-2 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const list = Array.isArray(settings.tshirt_sizes) ? settings.tshirt_sizes : parseSizesToObjects(settings.tshirt_sizes);
+                                          const updated = list.filter((_, i) => i !== idx);
+                                          setSettings({ ...settings, tshirt_sizes: updated });
+                                        }}
+                                        className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                                        title="Remove Size"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1755,23 +1903,28 @@ export const AdminPage = () => {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {activeSizes.map(sz => (
-                      <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
-                        <span className="font-semibold text-slate-200">{sz}</span>
-                        <select
-                          value={addForm.sizes[sz] || 0}
-                          onChange={(e) => setAddForm({
-                            ...addForm,
-                            sizes: { ...addForm.sizes, [sz]: parseInt(e.target.value, 10) || 0 }
-                          })}
-                          className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
-                        >
-                          {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    {activeSizes.map(sz => {
+                      const szKey = getSzKey(sz);
+                      const sizeNo = typeof sz === 'object' ? sz.size : String(sz);
+                      const label = typeof sz === 'object' ? sz.label : '';
+                      return (
+                        <div key={szKey} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
+                          <span className="font-semibold text-slate-200">Size {sizeNo}{label ? ` (${label})` : ''}</span>
+                          <select
+                            value={addForm.sizes[szKey] || 0}
+                            onChange={(e) => setAddForm({
+                              ...addForm,
+                              sizes: { ...addForm.sizes, [szKey]: parseInt(e.target.value, 10) || 0 }
+                            })}
+                            className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
+                          >
+                            {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1929,23 +2082,28 @@ export const AdminPage = () => {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {activeSizes.map(sz => (
-                      <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
-                        <span className="font-semibold text-slate-200">{sz}</span>
-                        <select
-                          value={editForm.sizes[sz] || 0}
-                          onChange={(e) => setEditForm({
-                            ...editForm,
-                            sizes: { ...editForm.sizes, [sz]: parseInt(e.target.value, 10) || 0 }
-                          })}
-                          className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
-                        >
-                          {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
-                            <option key={n} value={n}>{n}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+                    {activeSizes.map(sz => {
+                      const szKey = getSzKey(sz);
+                      const sizeNo = typeof sz === 'object' ? sz.size : String(sz);
+                      const label = typeof sz === 'object' ? sz.label : '';
+                      return (
+                        <div key={szKey} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
+                          <span className="font-semibold text-slate-200">Size {sizeNo}{label ? ` (${label})` : ''}</span>
+                          <select
+                            value={editForm.sizes[szKey] || 0}
+                            onChange={(e) => setEditForm({
+                              ...editForm,
+                              sizes: { ...editForm.sizes, [szKey]: parseInt(e.target.value, 10) || 0 }
+                            })}
+                            className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
+                          >
+                            {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

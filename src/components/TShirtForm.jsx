@@ -15,13 +15,15 @@ import {
   Loader2,
   FileCheck,
   Plus,
-  Minus
+  Minus,
+  Ruler
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { JANMASTHAMI_CONFIG } from '../data/data';
+import { JANMASTHAMI_CONFIG, formatSizeKey } from '../data/data';
 import { useSettings } from '../context/SettingsContext';
 import { submitRegistration, fetchTShirtSettings, checkMobileExists } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { SizeChartModal } from './SizeChartModal';
 import tshirtMockup from '../assets/tshirt-mockup.png';
 
 export const TShirtForm = () => {
@@ -31,14 +33,18 @@ export const TShirtForm = () => {
     mobile: ''
   });
 
+  const [showSizeChart, setShowSizeChart] = useState(false);
+
   const availableSizes = siteSettings.tshirtSizes && siteSettings.tshirtSizes.length > 0
     ? siteSettings.tshirtSizes
     : JANMASTHAMI_CONFIG.tshirtSizes;
 
+  const getSzKey = (sz) => typeof sz === 'object' ? formatSizeKey(sz) : String(sz);
+
   const [sizeQuantities, setSizeQuantities] = useState(() => {
     const initial = {};
     availableSizes.forEach(sz => {
-      initial[sz] = 0;
+      initial[getSzKey(sz)] = 0;
     });
     return initial;
   });
@@ -46,7 +52,8 @@ export const TShirtForm = () => {
   useEffect(() => {
     const initial = {};
     availableSizes.forEach(sz => {
-      initial[sz] = sizeQuantities[sz] || 0;
+      const key = getSzKey(sz);
+      initial[key] = sizeQuantities[key] || 0;
     });
     setSizeQuantities(initial);
   }, [siteSettings.tshirtSizes]);
@@ -359,48 +366,80 @@ export const TShirtForm = () => {
 
               {/* Sizes Quantity Selection List */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                     <Shirt className="w-4 h-4 text-amber-400" />
                     <span>Select Quantity for Each Size:</span>
                   </div>
-                  <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                    ₹{settings.price} per shirt
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowSizeChart(true)}
+                      className="px-2.5 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Ruler className="w-3.5 h-3.5" />
+                      <span>View Size Chart</span>
+                    </button>
+
+                    <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                      ₹{settings.price} per shirt
+                    </span>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-96 overflow-y-auto pr-1">
-                  {availableSizes.map((sz) => {
-                    const qty = sizeQuantities[sz] || 0;
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {availableSizes.map((szItem) => {
+                    const keyStr = getSzKey(szItem);
+                    const sizeNo = typeof szItem === 'object' ? szItem.size : String(szItem);
+                    const label = typeof szItem === 'object' ? szItem.label : '';
+                    const width = typeof szItem === 'object' ? szItem.width : '';
+                    const length = typeof szItem === 'object' ? szItem.length : '';
+                    const year = typeof szItem === 'object' ? szItem.year : '';
+
+                    const qty = sizeQuantities[keyStr] || 0;
                     const isSelected = qty > 0;
                     return (
                       <div
-                        key={sz}
+                        key={keyStr}
                         className={`p-3 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
                           isSelected
                             ? 'bg-gradient-to-r from-amber-500/15 to-yellow-500/10 border-amber-400 shadow-md shadow-amber-500/10'
                             : 'bg-[#080d19] border-amber-500/20 hover:border-amber-500/40'
                         }`}
                       >
-                        <div>
-                          <div className="text-xs font-extrabold text-slate-100 flex items-center gap-1.5">
-                            <span>Size {sz}</span>
+                        <div className="pr-2 min-w-0">
+                          <div className="text-xs font-extrabold text-slate-100 flex items-center gap-1.5 flex-wrap">
+                            <span>Size {sizeNo}</span>
+                            {label && <span className="text-[10px] text-amber-300 bg-amber-500/20 px-1.5 py-0.2 rounded border border-amber-500/30">{label}</span>}
                             {isSelected && (
                               <span className="text-[10px] bg-amber-500 text-slate-950 font-bold px-1.5 py-0.2 rounded">
                                 ₹{qty * settings.price}
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+
+                          {/* Size Specifications Subtitle */}
+                          {width && length && (
+                            <div className="text-[11px] text-slate-300 font-mono mt-0.5">
+                              W: {width}" | L: {length}"
+                            </div>
+                          )}
+                          {year && (
+                            <div className="text-[10px] text-amber-300/90 font-medium mt-0.5">
+                              Age: {year} Yrs
+                            </div>
+                          )}
+                          <div className="text-[10px] text-slate-400 mt-0.5">
                             {qty > 0 ? `${qty} shirt(s) selected` : 'Select quantity'}
                           </div>
                         </div>
 
                         {/* Quantity Controls */}
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             type="button"
-                            onClick={() => handleQuantityChange(sz, qty - 1)}
+                            onClick={() => handleQuantityChange(keyStr, qty - 1)}
                             disabled={qty === 0}
                             className="w-7 h-7 rounded-lg bg-[#0d1425] border border-amber-500/30 text-amber-300 flex items-center justify-center disabled:opacity-30 disabled:hover:bg-[#0d1425] hover:bg-amber-500/20 transition active:scale-95 cursor-pointer"
                           >
@@ -409,7 +448,7 @@ export const TShirtForm = () => {
 
                           <select
                             value={qty}
-                            onChange={(e) => handleQuantityChange(sz, e.target.value)}
+                            onChange={(e) => handleQuantityChange(keyStr, e.target.value)}
                             className="w-14 py-1 text-center bg-[#0d1425] border border-amber-500/40 rounded-lg text-xs font-bold text-amber-300 focus:outline-none cursor-pointer"
                           >
                             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map((num) => (
@@ -421,7 +460,7 @@ export const TShirtForm = () => {
 
                           <button
                             type="button"
-                            onClick={() => handleQuantityChange(sz, qty + 1)}
+                            onClick={() => handleQuantityChange(keyStr, qty + 1)}
                             className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center hover:bg-amber-500/30 transition active:scale-95 cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -627,6 +666,13 @@ export const TShirtForm = () => {
         )}
 
       </div>
+
+      {/* T-Shirt Size List & Measurement Guide Modal */}
+      <SizeChartModal
+        isOpen={showSizeChart}
+        onClose={() => setShowSizeChart(false)}
+        sizes={availableSizes}
+      />
     </section>
   );
 };

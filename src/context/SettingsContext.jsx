@@ -22,26 +22,51 @@ export const SettingsProvider = ({ children }) => {
     try {
       const res = await fetchTShirtSettings();
       if (res.data) {
-        let sizes = JANMASTHAMI_CONFIG.tshirtSizes;
+        let rawSizes = JANMASTHAMI_CONFIG.tshirtSizes;
         if (res.data.tshirt_sizes) {
           if (Array.isArray(res.data.tshirt_sizes)) {
-            sizes = res.data.tshirt_sizes;
+            rawSizes = res.data.tshirt_sizes;
           } else if (typeof res.data.tshirt_sizes === 'string') {
             try {
               const parsed = JSON.parse(res.data.tshirt_sizes);
-              sizes = Array.isArray(parsed) ? parsed : res.data.tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
+              rawSizes = Array.isArray(parsed) ? parsed : res.data.tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
             } catch (e) {
-              sizes = res.data.tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
+              rawSizes = res.data.tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
             }
           }
         }
+
+        // Normalize rawSizes array to standardized objects [{size, label, width, length, year}]
+        const normalizedSizes = rawSizes.map(item => {
+          if (typeof item === 'object' && item !== null && item.size) {
+            return {
+              size: String(item.size),
+              label: String(item.label || ''),
+              width: String(item.width || ''),
+              length: String(item.length || ''),
+              year: String(item.year || '')
+            };
+          }
+          const str = String(item).trim();
+          const match = str.match(/^(\d+)\s*(?:\(([^)]+)\))?$/);
+          if (match) {
+            return {
+              size: match[1],
+              label: match[2] || '',
+              width: '',
+              length: '',
+              year: ''
+            };
+          }
+          return { size: str, label: '', width: '', length: '', year: '' };
+        });
 
         setSiteSettings({
           groupName: res.data.group_name || JANMASTHAMI_CONFIG.groupName,
           tagline: res.data.tagline || JANMASTHAMI_CONFIG.tagline,
           location: res.data.location || JANMASTHAMI_CONFIG.location,
           targetDate: res.data.target_date || JANMASTHAMI_CONFIG.targetDate,
-          tshirtSizes: sizes.length > 0 ? sizes : JANMASTHAMI_CONFIG.tshirtSizes,
+          tshirtSizes: normalizedSizes.length > 0 ? normalizedSizes : JANMASTHAMI_CONFIG.tshirtSizes,
           price: Number(res.data.price) || 250,
           qr_code_url: res.data.qr_code_url || '',
           sample_image_url: res.data.sample_image_url || '',

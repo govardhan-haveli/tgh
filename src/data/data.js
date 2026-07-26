@@ -6,6 +6,37 @@
  * and Cloudinary/Supabase setup defaults.
  */
 
+export const DEFAULT_TSHIRT_SIZES = [
+  { size: "18", label: "", width: "10.5", length: "16", year: "06-01" },
+  { size: "20", label: "", width: "11.5", length: "18", year: "02-03" },
+  { size: "22", label: "", width: "12.5", length: "20", year: "03-04" },
+  { size: "24", label: "", width: "13.5", length: "20", year: "04-05" },
+  { size: "26", label: "", width: "14.5", length: "22", year: "05-06" },
+  { size: "28", label: "", width: "15.5", length: "25", year: "06-07" },
+  { size: "30", label: "", width: "16.5", length: "26", year: "08-09" },
+  { size: "32", label: "", width: "17.5", length: "27", year: "10-11" },
+  { size: "34", label: "XS", width: "18.5", length: "28", year: "11-12" },
+  { size: "36", label: "S", width: "19.5", length: "29", year: "" },
+  { size: "38", label: "M", width: "20.5", length: "30", year: "" },
+  { size: "40", label: "L", width: "21.5", length: "31", year: "" },
+  { size: "42", label: "XL", width: "22.5", length: "32", year: "" },
+  { size: "44", label: "2XL", width: "23.5", length: "33", year: "" },
+  { size: "46", label: "3XL", width: "24.5", length: "34", year: "" },
+  { size: "48", label: "4XL", width: "25.5", length: "35", year: "" },
+  { size: "50", label: "5XL", width: "26.5", length: "36", year: "" },
+  { size: "52", label: "6XL", width: "27.5", length: "37", year: "" },
+  { size: "54", label: "7XL", width: "28.5", length: "38", year: "" },
+  { size: "56", label: "8XL", width: "29.5", length: "38", year: "" },
+  { size: "58", label: "9XL", width: "30.5", length: "38", year: "" }
+];
+
+export const formatSizeKey = (szItem) => {
+  if (!szItem) return "";
+  if (typeof szItem === 'string') return szItem;
+  if (szItem.label) return `${szItem.size} (${szItem.label})`;
+  return String(szItem.size || "");
+};
+
 export const JANMASTHAMI_CONFIG = {
   // Group details
   groupName: "Goverdhan Haveli",
@@ -17,7 +48,7 @@ export const JANMASTHAMI_CONFIG = {
   targetDate: "2026-09-04T00:00:00+05:30",
 
   // T-Shirt Sizes available for registration
-  tshirtSizes: ["18", "20", "22", "24", "26", "28", "30", "32", "34", "36 (XS)", "38 (S)", "40 (M)", "42 (L)", "44 (XL)", "46 (XXL)", "48 (3XL)", "50 (4XL)"],
+  tshirtSizes: DEFAULT_TSHIRT_SIZES,
 
   // Allowed Admin Passwords as specified in requirement:
   // Passwords: "Govardhan-Haveli-2026" and "TGH@2026"
