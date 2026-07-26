@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Sparkles, Menu, X, Shirt, Image, Home } from 'lucide-react';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { useSettings } from '../context/SettingsContext';
 import logoImg from '../assets/logo.png';
 
 export const Navbar = () => {
+  const { siteSettings } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
@@ -46,7 +48,7 @@ export const Navbar = () => {
             </div>
             <div>
               <span className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500 bg-clip-text text-transparent tracking-wide font-serif">
-                {JANMASTHAMI_CONFIG.groupName}
+                {siteSettings.groupName}
               </span>
               <div className="flex items-center gap-1 text-[11px] sm:text-xs text-amber-300/80 font-medium">
                 <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" />

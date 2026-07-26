@@ -21,54 +21,52 @@ import {
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { useSettings } from '../context/SettingsContext';
 import { submitRegistration, fetchTShirtSettings } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
 import tshirtMockup from '../assets/tshirt-mockup.png';
 
 export const RegistrationPage = () => {
+  const { siteSettings } = useSettings();
   const [primaryContact, setPrimaryContact] = useState({
     name: '',
     mobile: ''
   });
 
+  const availableSizes = siteSettings.tshirtSizes && siteSettings.tshirtSizes.length > 0
+    ? siteSettings.tshirtSizes
+    : JANMASTHAMI_CONFIG.tshirtSizes;
+
   const [sizeQuantities, setSizeQuantities] = useState(() => {
     const initial = {};
-    JANMASTHAMI_CONFIG.tshirtSizes.forEach(sz => {
+    availableSizes.forEach(sz => {
       initial[sz] = 0;
     });
     return initial;
   });
 
+  useEffect(() => {
+    const initial = {};
+    availableSizes.forEach(sz => {
+      initial[sz] = sizeQuantities[sz] || 0;
+    });
+    setSizeQuantities(initial);
+  }, [siteSettings.tshirtSizes]);
+
   const [paymentFile, setPaymentFile] = useState(null);
   const [paymentPreview, setPaymentPreview] = useState('');
   
-  const [settings, setSettings] = useState({
-    price: 250,
-    qr_code_url: '',
-    sample_image_url: '',
-    description: ''
-  });
-
   const [submitting, setSubmitting] = useState(false);
   const [submitStatusText, setSubmitStatusText] = useState('');
   const [submittedData, setSubmittedData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
 
-  useEffect(() => {
-    const loadSettings = async () => {
-      const res = await fetchTShirtSettings();
-      if (res.data) {
-        setSettings({
-          price: res.data.price || 250,
-          qr_code_url: res.data.qr_code_url || '',
-          sample_image_url: res.data.sample_image_url || '',
-          description: res.data.description || ''
-        });
-      }
-    };
-
-    loadSettings();
-  }, []);
+  const settings = {
+    price: siteSettings.price || 250,
+    qr_code_url: siteSettings.qr_code_url || '',
+    sample_image_url: siteSettings.sample_image_url || '',
+    description: siteSettings.description || ''
+  };
 
   const handleContactChange = (e) => {
     setPrimaryContact({
@@ -375,7 +373,7 @@ export const RegistrationPage = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-96 overflow-y-auto pr-1">
-                  {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => {
+                  {availableSizes.map((sz) => {
                     const qty = sizeQuantities[sz] || 0;
                     const isSelected = qty > 0;
                     return (

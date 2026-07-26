@@ -1,8 +1,11 @@
 import React from 'react';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { useSettings } from '../context/SettingsContext';
 import logoImg from '../assets/logo.png';
 
 export const Footer = () => {
+  const { siteSettings } = useSettings();
+
   return (
     <footer className="border-t border-amber-500/20 bg-[#080d19] text-slate-300 py-10 px-4 sm:px-6 relative z-10">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -16,17 +19,17 @@ export const Footer = () => {
           />
           <div>
             <span className="text-lg font-bold bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent font-serif">
-              {JANMASTHAMI_CONFIG.groupName}
+              {siteSettings.groupName}
             </span>
             <p className="text-xs text-slate-400">
-              Shree Krishna Janmashtami Mahotsav Celebration
+              {siteSettings.tagline}
             </p>
           </div>
         </div>
 
         {/* Copyright */}
         <div className="text-xs text-slate-500 text-center sm:text-right">
-          © {new Date().getFullYear()} Goverdhan Haveli Group. All Rights Reserved.
+          © {new Date().getFullYear()} {siteSettings.groupName} Group. All Rights Reserved.
         </div>
 
       </div>

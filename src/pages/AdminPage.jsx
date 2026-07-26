@@ -26,7 +26,9 @@ import {
   Pencil,
   UserPlus,
   FileCheck,
-  Instagram
+  Instagram,
+  Sparkles,
+  ShoppingBag
 } from 'lucide-react';
 import { AdminAuthModal } from '../components/AdminAuthModal';
 import {
@@ -46,8 +48,21 @@ import {
 } from '../services/supabase';
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { useSettings } from '../context/SettingsContext';
+const formatToDatetimeLocal = (dateStr) => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) {
+    return '';
+  }
+};
 
 export const AdminPage = () => {
+  const { siteSettings, reloadSettings } = useSettings();
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return sessionStorage.getItem('goverdhan_admin_authenticated') === 'true';
   });
@@ -98,8 +113,13 @@ export const AdminPage = () => {
   });
   const [editFile, setEditFile] = useState(null);
 
-  // Dynamic T-Shirt & Payment Settings state
+  // Dynamic Settings state (Group Name, Tagline, Location, Target Date, Sizes, Price, Images)
   const [settings, setSettings] = useState({
+    group_name: JANMASTHAMI_CONFIG.groupName,
+    tagline: JANMASTHAMI_CONFIG.tagline,
+    location: JANMASTHAMI_CONFIG.location,
+    target_date: JANMASTHAMI_CONFIG.targetDate,
+    tshirt_sizes: JANMASTHAMI_CONFIG.tshirtSizes.join(', '),
     price: 250,
     qr_code_url: '',
     sample_image_url: '',
@@ -232,7 +252,26 @@ export const AdminPage = () => {
     setLoadingSettings(true);
     const res = await fetchTShirtSettings();
     if (res.data) {
+      let sizesStr = JANMASTHAMI_CONFIG.tshirtSizes.join(', ');
+      if (res.data.tshirt_sizes) {
+        if (Array.isArray(res.data.tshirt_sizes)) {
+          sizesStr = res.data.tshirt_sizes.join(', ');
+        } else if (typeof res.data.tshirt_sizes === 'string') {
+          try {
+            const parsed = JSON.parse(res.data.tshirt_sizes);
+            sizesStr = Array.isArray(parsed) ? parsed.join(', ') : res.data.tshirt_sizes;
+          } catch (e) {
+            sizesStr = res.data.tshirt_sizes;
+          }
+        }
+      }
+
       setSettings({
+        group_name: res.data.group_name || JANMASTHAMI_CONFIG.groupName,
+        tagline: res.data.tagline || JANMASTHAMI_CONFIG.tagline,
+        location: res.data.location || JANMASTHAMI_CONFIG.location,
+        target_date: res.data.target_date || JANMASTHAMI_CONFIG.targetDate,
+        tshirt_sizes: sizesStr,
         price: res.data.price || 250,
         qr_code_url: res.data.qr_code_url || '',
         sample_image_url: res.data.sample_image_url || '',
@@ -319,6 +358,10 @@ export const AdminPage = () => {
     setIsAuthenticated(false);
   };
 
+  const activeSizes = siteSettings.tshirtSizes && siteSettings.tshirtSizes.length > 0
+    ? siteSettings.tshirtSizes
+    : JANMASTHAMI_CONFIG.tshirtSizes;
+
   // Filtered List based on search, status, size, payment status, and payment mode
   const filteredRegistrations = registrations.filter(item => {
     const query = searchTerm.toLowerCase().trim();
@@ -345,7 +388,7 @@ export const AdminPage = () => {
   });
 
   // Calculate size counts based on FILTERED registrations for Vendor Bulk Printing Order
-  const filteredSizeCounts = JANMASTHAMI_CONFIG.tshirtSizes.reduce((acc, sz) => {
+  const filteredSizeCounts = activeSizes.reduce((acc, sz) => {
     acc[sz] = filteredRegistrations.reduce((count, r) => {
       if (r.sizes && typeof r.sizes === 'object') {
         return count + (Number(r.sizes[sz]) || 0);
@@ -598,6 +641,11 @@ export const AdminPage = () => {
       setSettingsMsg({ type: 'info', text: 'Saving settings...' });
 
       const res = await updateTShirtSettings({
+        group_name: settings.group_name,
+        tagline: settings.tagline,
+        location: settings.location,
+        target_date: settings.target_date,
+        tshirt_sizes: settings.tshirt_sizes,
         price: settings.price,
         qr_code_url: finalQrUrl,
         sample_image_url: finalSampleUrl,
@@ -605,7 +653,17 @@ export const AdminPage = () => {
       });
 
       if (res.success) {
+        let sizesStr = JANMASTHAMI_CONFIG.tshirtSizes.join(', ');
+        if (res.data.tshirt_sizes) {
+          sizesStr = Array.isArray(res.data.tshirt_sizes) ? res.data.tshirt_sizes.join(', ') : String(res.data.tshirt_sizes);
+        }
+
         setSettings({
+          group_name: res.data.group_name,
+          tagline: res.data.tagline,
+          location: res.data.location,
+          target_date: res.data.target_date,
+          tshirt_sizes: sizesStr,
           price: res.data.price,
           qr_code_url: res.data.qr_code_url,
           sample_image_url: res.data.sample_image_url,
@@ -615,7 +673,8 @@ export const AdminPage = () => {
         setSamplePreview(res.data.sample_image_url || '');
         setQrFile(null);
         setSampleFile(null);
-        setSettingsMsg({ type: 'success', text: '✅ T-Shirt Settings updated successfully!' });
+        await reloadSettings();
+        setSettingsMsg({ type: 'success', text: '✅ General Settings updated successfully!' });
       }
     } catch (err) {
       setSettingsMsg({ type: 'error', text: err.message || 'Failed to update settings.' });
@@ -781,7 +840,7 @@ export const AdminPage = () => {
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
-                {JANMASTHAMI_CONFIG.tshirtSizes.map((sz) => (
+                {activeSizes.map((sz) => (
                   <div
                     key={sz}
                     className={`p-2.5 rounded-xl border transition text-center ${
@@ -865,7 +924,7 @@ export const AdminPage = () => {
                     className="bg-[#080d19] border border-amber-500/30 text-amber-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none cursor-pointer"
                   >
                     <option value="All">All Sizes</option>
-                    {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                    {activeSizes.map(sz => (
                       <option key={sz} value={sz}>{sz}</option>
                     ))}
                   </select>
@@ -1106,164 +1165,282 @@ export const AdminPage = () => {
               ) : (
                 <form onSubmit={handleSaveSettings} className="space-y-6">
                   
-                  {/* Field: T-Shirt Price */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-bold text-amber-200 mb-2">
-                      T-Shirt Registration Price (INR ₹)
-                    </label>
-                    <div className="relative max-w-xs">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
-                        <IndianRupee className="w-4 h-4" />
+                  {/* Section 1: Community & Event Settings */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#080d19]/60 border border-amber-500/20 space-y-4">
+                    <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-400" />
+                      General Community & Event Settings
+                    </h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Field: Group Name */}
+                      <div>
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
+                          Group / Community Name
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.group_name || ''}
+                          onChange={(e) => setSettings({ ...settings, group_name: e.target.value })}
+                          placeholder="Goverdhan Haveli"
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-amber-400 font-semibold"
+                        />
                       </div>
-                      <input
-                        type="number"
-                        value={settings.price}
-                        onChange={(e) => setSettings({ ...settings, price: e.target.value })}
-                        placeholder="250"
-                        required
-                        className="w-full pl-10 pr-4 py-3 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 focus:outline-none focus:border-amber-400 font-mono text-base font-bold"
-                      />
+
+                      {/* Field: Location */}
+                      <div>
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
+                          Event Location
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.location || ''}
+                          onChange={(e) => setSettings({ ...settings, location: e.target.value })}
+                          placeholder="Goverdhan Haveli, India"
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-amber-400 font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Field: Tagline */}
+                      <div>
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
+                          Festival Tagline / Header Text
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.tagline || ''}
+                          onChange={(e) => setSettings({ ...settings, tagline: e.target.value })}
+                          placeholder="Shree Krishna Janmashtami Mahotsav 2026"
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-amber-400 font-semibold"
+                        />
+                      </div>
+
+                      {/* Field: Target Date & Time Picker */}
+                      <div>
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5 flex items-center justify-between">
+                          <span>Target Janmashtami Date & Time</span>
+                          <span className="text-[10px] text-amber-400 font-normal">Click to pick date</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={formatToDatetimeLocal(settings.target_date)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              setSettings({ ...settings, target_date: new Date(val).toISOString() });
+                            }
+                          }}
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs sm:text-sm text-amber-300 focus:outline-none focus:border-amber-400 font-mono font-bold cursor-pointer"
+                        />
+                        {settings.target_date && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Selected: <span className="text-amber-300 font-semibold">{(() => {
+                              try {
+                                const d = new Date(settings.target_date);
+                                return isNaN(d.getTime()) ? settings.target_date : d.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+                              } catch (e) {
+                                return settings.target_date;
+                              }
+                            })()}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Field: Dynamic Payment QR Code Photo */}
-                  <div className="space-y-2">
-                    <label className="block text-xs sm:text-sm font-bold text-amber-200">
-                      Payment QR Code Photo
-                    </label>
+                  {/* Section 2: T-Shirt Registration Configuration */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-[#080d19]/60 border border-amber-500/20 space-y-4">
+                    <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                      <ShoppingBag className="w-4 h-4 text-amber-400" />
+                      T-Shirt Price & Size Management
+                    </h3>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                      <div className="sm:col-span-7">
-                        <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
-                          <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
-                          <span className="text-xs font-bold text-amber-200">
-                            Upload New QR Code Image
-                          </span>
-                          <span className="text-[10px] text-slate-400 mt-1">
-                            {qrFile ? `Selected File: ${qrFile.name}` : 'Click to select image file from computer'}
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const f = e.target.files[0];
-                              if (f) {
-                                setQrFile(f);
-                                setQrPreview(URL.createObjectURL(f));
-                              }
-                            }}
-                            className="hidden"
-                          />
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                      {/* Field: T-Shirt Price */}
+                      <div className="sm:col-span-4">
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
+                          T-Shirt Registration Price (INR ₹)
                         </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400">
+                            <IndianRupee className="w-4 h-4" />
+                          </div>
+                          <input
+                            type="number"
+                            value={settings.price}
+                            onChange={(e) => setSettings({ ...settings, price: e.target.value })}
+                            placeholder="250"
+                            required
+                            className="w-full pl-10 pr-4 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 focus:outline-none focus:border-amber-400 font-mono text-base font-bold"
+                          />
+                        </div>
                       </div>
 
-                      <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-white rounded-2xl border-2 border-amber-400 shadow-md min-h-[160px]">
-                        {(qrPreview || settings.qr_code_url) ? (
-                          <div className="text-center space-y-2 w-full">
-                            <img
-                              src={qrPreview || settings.qr_code_url}
-                              alt="Current QR Code"
-                              className="w-32 h-32 object-contain rounded mx-auto"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                setQrPreview('');
+                      {/* Field: Available T-Shirt Sizes */}
+                      <div className="sm:col-span-8">
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5">
+                          Available T-Shirt Sizes (Comma-separated)
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.tshirt_sizes || ''}
+                          onChange={(e) => setSettings({ ...settings, tshirt_sizes: e.target.value })}
+                          placeholder="18, 20, 22, 24, 26, 28, 30, 32, 34, 36 (XS), 38 (S), 40 (M), 42 (L), 44 (XL)"
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400 font-mono"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Separate size options with commas. These appear in registration forms.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 3: Dynamic Payment QR Code Photo & Sample Image */}
+                  <div className="space-y-4">
+                    {/* Field: Dynamic Payment QR Code Photo */}
+                    <div className="space-y-2">
+                      <label className="block text-xs sm:text-sm font-bold text-amber-200">
+                        Payment QR Code Photo
+                      </label>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                        <div className="sm:col-span-7">
+                          <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
+                            <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
+                            <span className="text-xs font-bold text-amber-200">
+                              Upload New QR Code Image
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-1">
+                              {qrFile ? `Selected File: ${qrFile.name}` : 'Click to select image file from computer'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const f = e.target.files[0];
+                                if (f) {
+                                  setQrFile(f);
+                                  setQrPreview(URL.createObjectURL(f));
+                                }
                               }}
+                              className="hidden"
                             />
-                            <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
-                              <span className="text-[10px] font-bold text-slate-800 bg-amber-100 px-2 py-0.5 rounded">
-                                Attached QR Code
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setQrFile(null);
+                          </label>
+                        </div>
+
+                        <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-white rounded-2xl border-2 border-amber-400 shadow-md min-h-[160px]">
+                          {(qrPreview || settings.qr_code_url) ? (
+                            <div className="text-center space-y-2 w-full">
+                              <img
+                                src={qrPreview || settings.qr_code_url}
+                                alt="Current QR Code"
+                                className="w-32 h-32 object-contain rounded mx-auto"
+                                onError={(e) => {
+                                  e.target.onerror = null;
                                   setQrPreview('');
-                                  setSettings(prev => ({ ...prev, qr_code_url: '' }));
                                 }}
-                                className="text-[10px] font-bold text-rose-600 hover:text-rose-800 underline cursor-pointer"
-                              >
-                                Clear Image
-                              </button>
+                              />
+                              <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
+                                <span className="text-[10px] font-bold text-slate-800 bg-amber-100 px-2 py-0.5 rounded">
+                                  Attached QR Code
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setQrFile(null);
+                                    setQrPreview('');
+                                    setSettings(prev => ({ ...prev, qr_code_url: '' }));
+                                  }}
+                                  className="text-[10px] font-bold text-rose-600 hover:text-rose-800 underline cursor-pointer"
+                                >
+                                  Clear Image
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="text-center p-3">
-                            <QrCode className="w-12 h-12 text-slate-400 mx-auto" />
-                            <p className="text-xs text-slate-600 font-semibold mt-1">No QR Code set</p>
-                            <p className="text-[10px] text-slate-400">Upload an image file using button on left</p>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="text-center p-3">
+                              <QrCode className="w-12 h-12 text-slate-400 mx-auto" />
+                              <p className="text-xs text-slate-600 font-semibold mt-1">No QR Code set</p>
+                              <p className="text-[10px] text-slate-400">Upload an image file using button on left</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Field: T-Shirt Sample Photo */}
-                  <div className="space-y-2">
-                    <label className="block text-xs sm:text-sm font-bold text-amber-200">
-                      T-Shirt Sample Photo
-                    </label>
+                    {/* Field: T-Shirt Sample Photo */}
+                    <div className="space-y-2">
+                      <label className="block text-xs sm:text-sm font-bold text-amber-200">
+                        T-Shirt Sample Photo
+                      </label>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                      <div className="sm:col-span-7">
-                        <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
-                          <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
-                          <span className="text-xs font-bold text-amber-200">
-                            Upload New T-Shirt Sample Photo
-                          </span>
-                          <span className="text-[10px] text-slate-400 mt-1">
-                            {sampleFile ? `Selected File: ${sampleFile.name}` : 'Click to select image file from computer'}
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const f = e.target.files[0];
-                              if (f) {
-                                setSampleFile(f);
-                                setSamplePreview(URL.createObjectURL(f));
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                      </div>
-
-                      <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-[#080d19] rounded-2xl border border-amber-500/30 shadow-md min-h-[160px]">
-                        {(samplePreview || settings.sample_image_url) ? (
-                          <div className="text-center space-y-2 w-full">
-                            <img
-                              src={samplePreview || settings.sample_image_url}
-                              alt="Current Sample Mockup"
-                              className="w-32 h-32 object-contain rounded mx-auto border border-amber-400/40"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                setSamplePreview('');
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                        <div className="sm:col-span-7">
+                          <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-amber-500/30 hover:border-amber-400 rounded-2xl cursor-pointer bg-[#080d19]/80 hover:bg-amber-500/5 transition text-center group">
+                            <Upload className="w-7 h-7 text-amber-400 group-hover:scale-110 transition mb-2" />
+                            <span className="text-xs font-bold text-amber-200">
+                              Upload New T-Shirt Sample Photo
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-1">
+                              {sampleFile ? `Selected File: ${sampleFile.name}` : 'Click to select image file from computer'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const f = e.target.files[0];
+                                if (f) {
+                                  setSampleFile(f);
+                                  setSamplePreview(URL.createObjectURL(f));
+                                }
                               }}
+                              className="hidden"
                             />
-                            <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
-                              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
-                                Attached Sample Mockup
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSampleFile(null);
+                          </label>
+                        </div>
+
+                        <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 bg-[#080d19] rounded-2xl border border-amber-500/30 shadow-md min-h-[160px]">
+                          {(samplePreview || settings.sample_image_url) ? (
+                            <div className="text-center space-y-2 w-full">
+                              <img
+                                src={samplePreview || settings.sample_image_url}
+                                alt="Current Sample Mockup"
+                                className="w-32 h-32 object-contain rounded mx-auto border border-amber-400/40"
+                                onError={(e) => {
+                                  e.target.onerror = null;
                                   setSamplePreview('');
-                                  setSettings(prev => ({ ...prev, sample_image_url: '' }));
                                 }}
-                                className="text-[10px] font-bold text-rose-400 hover:text-rose-300 underline cursor-pointer"
-                              >
-                                Clear Image
-                              </button>
+                              />
+                              <div className="flex items-center justify-between gap-1 w-full pt-1 px-1">
+                                <span className="text-[10px] font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                                  Attached Sample Mockup
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSampleFile(null);
+                                    setSamplePreview('');
+                                    setSettings(prev => ({ ...prev, sample_image_url: '' }));
+                                  }}
+                                  className="text-[10px] font-bold text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                                >
+                                  Clear Image
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="text-center p-3">
-                            <FileImage className="w-12 h-12 text-slate-500 mx-auto" />
-                            <p className="text-xs text-slate-400 font-semibold mt-1">No Sample Photo set</p>
-                            <p className="text-[10px] text-slate-500">Upload an image file using button on left</p>
-                          </div>
-                        )}
+                          ) : (
+                            <div className="text-center p-3">
+                              <FileImage className="w-12 h-12 text-slate-500 mx-auto" />
+                              <p className="text-xs text-slate-400 font-semibold mt-1">No Sample Photo set</p>
+                              <p className="text-[10px] text-slate-500">Upload an image file using button on left</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1578,7 +1755,7 @@ export const AdminPage = () => {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                    {activeSizes.map(sz => (
                       <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
                         <span className="font-semibold text-slate-200">{sz}</span>
                         <select
@@ -1752,7 +1929,7 @@ export const AdminPage = () => {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                    {JANMASTHAMI_CONFIG.tshirtSizes.map(sz => (
+                    {activeSizes.map(sz => (
                       <div key={sz} className="flex items-center justify-between bg-[#0d1425] p-2 rounded-xl border border-amber-500/10 text-xs">
                         <span className="font-semibold text-slate-200">{sz}</span>
                         <select

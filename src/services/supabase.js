@@ -160,7 +160,7 @@ export const fetchTShirtSettings = async () => {
 /**
  * Update dynamic T-shirt settings (price, QR code URL, sample image URL, description)
  */
-export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description }) => {
+export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description, group_name, tagline, location, target_date, tshirt_sizes }) => {
   if (!supabase) {
     throw new Error("Service is temporarily unavailable. Please try again later.");
   }
@@ -185,11 +185,21 @@ export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_ur
     console.warn("Could not check/delete old settings images:", err);
   }
 
+  let normalizedSizes = tshirt_sizes;
+  if (typeof tshirt_sizes === 'string') {
+    normalizedSizes = tshirt_sizes.split(',').map(s => s.trim()).filter(Boolean);
+  }
+
   const payload = {
     price: Number(price) || 250,
     qr_code_url: qr_code_url || '',
     sample_image_url: sample_image_url || '',
     description: description || '',
+    group_name: group_name || JANMASTHAMI_CONFIG.groupName,
+    tagline: tagline || JANMASTHAMI_CONFIG.tagline,
+    location: location || JANMASTHAMI_CONFIG.location,
+    target_date: target_date || JANMASTHAMI_CONFIG.targetDate,
+    tshirt_sizes: normalizedSizes || JANMASTHAMI_CONFIG.tshirtSizes,
     updated_at: new Date().toISOString()
   };
 

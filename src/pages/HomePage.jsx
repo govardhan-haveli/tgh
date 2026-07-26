@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Shirt, Image, Film } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSettings } from '../context/SettingsContext';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MediaGallery } from '../components/MediaGallery';
 import { VideoGallery } from '../components/VideoGallery';
@@ -12,6 +13,7 @@ import logoImg from '../assets/logo.png';
 import heroBannerImg from '../assets/hero-banner.jpg';
 
 export const HomePage = () => {
+  const { siteSettings } = useSettings();
   return (
     <div className="relative overflow-hidden text-slate-100">
       
@@ -60,7 +62,7 @@ export const HomePage = () => {
             </div>
 
             <h1 className="text-3xl sm:text-6xl md:text-7xl font-black bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-500 bg-clip-text text-transparent font-serif tracking-tight leading-tight">
-              {JANMASTHAMI_CONFIG.groupName}
+              {siteSettings.groupName}
             </h1>
 
             <p className="text-slate-300 text-xs sm:text-lg max-w-2xl mx-auto font-light leading-relaxed px-2">

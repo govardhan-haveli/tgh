@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { RegistrationPage } from './pages/RegistrationPage';
 import { AdminPage } from './pages/AdminPage';
 import { InstagramPage } from './pages/InstagramPage';
+import { SettingsProvider } from './context/SettingsContext';
 
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
@@ -28,21 +29,23 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950 flex flex-col relative">
-        <DivineBackground />
-        <Navbar />
-        <main className="flex-grow z-10">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/register" element={<RegistrationPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/instagram" element={<InstagramPage />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </Router>
+    <SettingsProvider>
+      <Router>
+        <ScrollToTop />
+        <div className="min-h-screen bg-[#070b14] text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950 flex flex-col relative">
+          <DivineBackground />
+          <Navbar />
+          <main className="flex-grow z-10">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/register" element={<RegistrationPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/instagram" element={<InstagramPage />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </Router>
+    </SettingsProvider>
   );
 }

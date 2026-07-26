@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, Clock, Flame, Sparkles } from 'lucide-react';
 import { JANMASTHAMI_CONFIG } from '../data/data';
+import { useSettings } from '../context/SettingsContext';
 
 export const CountdownTimer = () => {
+  const { siteSettings } = useSettings();
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -14,7 +16,7 @@ export const CountdownTimer = () => {
 
   useEffect(() => {
     const calculateTime = () => {
-      const target = new Date(JANMASTHAMI_CONFIG.targetDate).getTime();
+      const target = new Date(siteSettings.targetDate || JANMASTHAMI_CONFIG.targetDate).getTime();
       const now = new Date().getTime();
       const difference = target - now;
 
@@ -46,7 +48,7 @@ export const CountdownTimer = () => {
   return (
     <div className="relative py-12 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto text-center">
-        
+
         {/* Header Badge */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -98,7 +100,15 @@ export const CountdownTimer = () => {
 
         <div className="mt-8 flex items-center justify-center gap-2 text-slate-400 text-xs sm:text-sm">
           <Calendar className="w-4 h-4 text-amber-400" />
-          <span>Expected Date: <strong className="text-amber-300">September 4, 2026</strong></span>
+          <span>Janmashtami Mahotsav Date: <strong className="text-amber-300">{(() => {
+            try {
+              const raw = siteSettings.targetDate || JANMASTHAMI_CONFIG.targetDate;
+              const d = new Date(raw);
+              return isNaN(d.getTime()) ? 'September 4, 2026' : d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            } catch (e) {
+              return 'September 4, 2026';
+            }
+          })()}</strong></span>
         </div>
 
       </div>
