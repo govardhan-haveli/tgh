@@ -1,23 +1,85 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Flame, Award, Zap } from 'lucide-react';
+import { Sparkles, Flame, Award, Zap, RefreshCw, Layers } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import krishna3DImg from '../assets/krishna-dahi-handi-3d.png';
+import krishnaIntactImg from '../assets/krishna-dahi-handi-intact.png';
+import krishnaReachingImg from '../assets/krishna-dahi-handi-reaching.png';
+import krishnaCheeringImg from '../assets/krishna-dahi-handi-cheering.png';
+import krishnaPyramidImg from '../assets/krishna-dahi-handi-pyramid.png';
+import krishnaClimbingImg from '../assets/krishna-dahi-handi-climbing.png';
+import krishnaStrikeImg from '../assets/krishna-dahi-handi-strike.png';
+import krishnaRainImg from '../assets/krishna-dahi-handi-rain.png';
 
 export const DahiHandiKrishna3DSection = () => {
-  const [isBroken, setIsBroken] = useState(false);
+  const [storyFrame, setStoryFrame] = useState(0); // 0 to 7
+  const [isAnimating, setIsAnimating] = useState(false);
   const [butterSplashCount, setButterSplashCount] = useState(0);
 
-  const triggerDahiHandiBreak = () => {
-    setIsBroken(true);
-    setButterSplashCount((prev) => prev + 1);
+  const storySteps = [
+    {
+      id: 0,
+      badge: 'Pot Hanging High! 🏺',
+      status: 'Intact Dahi Handi Pot',
+      buttonText: 'Break Dahi Handi Pot Now! 🏺💥',
+      image: krishnaIntactImg
+    },
+    {
+      id: 1,
+      badge: '1. Human Pyramid Forming 🪜',
+      status: '1. Village Boys Linking Arms & Building Pyramid',
+      buttonText: '1. Building Human Pyramid... 🪜',
+      image: krishnaPyramidImg
+    },
+    {
+      id: 2,
+      badge: '2. Krishna Climbing Up 👶',
+      status: '2. Bal Krishna Climbing Shoulders',
+      buttonText: '2. Bal Krishna Climbing Up... 👶',
+      image: krishnaClimbingImg
+    },
+    {
+      id: 3,
+      badge: '3. Reaching Stick Near Pot 🪄',
+      status: '3. Raising Wooden Stick Near Pot',
+      buttonText: '3. Reaching Stick Near Pot... 🪄',
+      image: krishnaReachingImg
+    },
+    {
+      id: 4,
+      badge: '4. STRIKING THE POT! ⚡',
+      status: '4. Wooden Stick Striking Earthen Pot',
+      buttonText: '4. Striking & Cracking Pot! ⚡',
+      image: krishnaStrikeImg
+    },
+    {
+      id: 5,
+      badge: '5. MAKHAN SPLASH! 🧈💥',
+      status: '5. Pot Broken! White Butter Splashing!',
+      buttonText: '5. Pot Broken & Butter Splashing! 🧈💥',
+      image: krishna3DImg
+    },
+    {
+      id: 6,
+      badge: '6. Butter & Gulal Rain 🎨',
+      status: '6. Fresh Curd & Festive Gulal Raining Down',
+      buttonText: '6. White Butter & Gulal Raining! 🎨',
+      image: krishnaRainImg
+    },
+    {
+      id: 7,
+      badge: '7. Govinda Victory Celebration 🎉',
+      status: '7. People Clapping Hands & Cheering!',
+      buttonText: '7. People Clapping & Cheering! 👏🎉',
+      image: krishnaCheeringImg
+    }
+  ];
 
-    // Multi-stage festive confetti celebration
+  const currentStep = storySteps[storyFrame];
+
+  const fireConfettiBurst = () => {
     const count = 220;
-    const defaults = {
-      origin: { y: 0.6 }
-    };
-
+    const defaults = { origin: { y: 0.6 } };
     function fire(particleRatio, opts) {
       confetti({
         ...defaults,
@@ -25,48 +87,72 @@ export const DahiHandiKrishna3DSection = () => {
         particleCount: Math.floor(count * particleRatio)
       });
     }
+    fire(0.25, { spread: 26, startVelocity: 55, colors: ['#f59e0b', '#fbbf24', '#ffffff'] });
+    fire(0.2, { spread: 60, colors: ['#ec4899', '#8b5cf6', '#3b82f6'] });
+    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, colors: ['#eab308', '#ffffff', '#f43f5e'] });
+  };
 
-    fire(0.25, {
-      spread: 26,
-      startVelocity: 55,
-      colors: ['#f59e0b', '#fbbf24', '#ffffff']
-    });
-    fire(0.2, {
-      spread: 60,
-      colors: ['#ec4899', '#8b5cf6', '#3b82f6']
-    });
-    fire(0.35, {
-      spread: 100,
-      decay: 0.91,
-      scalar: 0.8
-    });
-    fire(0.1, {
-      spread: 120,
-      startVelocity: 25,
-      decay: 0.92,
-      colors: ['#eab308', '#ffffff', '#f43f5e']
-    });
+  const triggerDahiHandiBreak = () => {
+    if (isAnimating) return;
 
-    setTimeout(() => setIsBroken(false), 4000);
+    setIsAnimating(true);
+    setButterSplashCount((prev) => prev + 1);
+
+    // Step 1: Human Pyramid Forming (0s)
+    setStoryFrame(1);
+
+    // Step 2: Krishna Climbing Up (1.0s)
+    setTimeout(() => setStoryFrame(2), 1000);
+
+    // Step 3: Reaching Stick Near Pot (2.0s)
+    setTimeout(() => setStoryFrame(3), 2000);
+
+    // Step 4: Striking The Pot (3.0s)
+    setTimeout(() => setStoryFrame(4), 3000);
+
+    // Step 5: Pot Breaking & Butter Splash (4.0s)
+    setTimeout(() => {
+      setStoryFrame(5);
+      fireConfettiBurst();
+    }, 4000);
+
+    // Step 6: Butter & Gulal Rain (5.2s)
+    setTimeout(() => {
+      setStoryFrame(6);
+      fireConfettiBurst();
+    }, 5200);
+
+    // Step 7: People Clapping & Cheering (6.4s)
+    setTimeout(() => {
+      setStoryFrame(7);
+      fireConfettiBurst();
+    }, 6400);
+
+    // Reset back to Step 0 (Intact Pot) (8.2s)
+    setTimeout(() => {
+      setStoryFrame(0);
+      setIsAnimating(false);
+    }, 8200);
   };
 
   return (
-    <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden bg-gradient-to-b from-[#070b14] via-[#0d1425] to-[#070b14]">
+    <section className="py-6 sm:py-24 px-3 sm:px-6 relative overflow-hidden bg-gradient-to-b from-[#070b14] via-[#0d1425] to-[#070b14]">
       {/* Ambient background glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[140px] pointer-events-none"></div>
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px] pointer-events-none"></div>
 
-      <div className="max-w-6xl mx-auto space-y-12 relative z-10">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-12 relative z-10">
 
         {/* Header */}
-        <div className="text-center space-y-4 max-w-3xl mx-auto">
+        <div className="text-center space-y-1.5 sm:space-y-4 max-w-3xl mx-auto">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-lg shadow-amber-500/10"
+            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-4 sm:py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-500/20 border border-amber-400/40 text-amber-300 text-[10px] sm:text-sm font-bold uppercase tracking-wider shadow-lg shadow-amber-500/10"
           >
-            <Sparkles className="w-4 h-4 text-amber-400 animate-spin" />
+            <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400 animate-spin" />
             <span>Grand 3D Dahi Handi Mahotsav</span>
           </motion.div>
 
@@ -74,7 +160,7 @@ export const DahiHandiKrishna3DSection = () => {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-3xl sm:text-5xl md:text-6xl font-black font-serif bg-gradient-to-r from-amber-100 via-amber-300 via-pink-300 to-yellow-400 bg-clip-text text-transparent tracking-tight leading-tight"
+            className="text-xl sm:text-5xl md:text-6xl font-black font-serif bg-gradient-to-r from-amber-100 via-amber-300 via-pink-300 to-yellow-400 bg-clip-text text-transparent tracking-tight leading-tight"
           >
             Makhan Chor Bal Krishna Dahi Handi
           </motion.h2>
@@ -83,7 +169,7 @@ export const DahiHandiKrishna3DSection = () => {
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-slate-300 text-xs sm:text-base leading-relaxed font-light"
+            className="text-slate-300 text-xs sm:text-base leading-relaxed font-light hidden sm:block"
           >
             Witness the energetic 3D spectacle of young Lord Krishna atop the human pyramid, breaking the hanging earthen pot of pure white butter while joyful village friends celebrate with vibrant colors & cheers!
           </motion.p>
@@ -95,21 +181,23 @@ export const DahiHandiKrishna3DSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="relative group rounded-3xl overflow-hidden border border-amber-500/30 bg-[#0d1425]/80 shadow-2xl shadow-amber-500/10 backdrop-blur-xl"
+          className="relative group rounded-2xl sm:rounded-3xl overflow-hidden border border-amber-500/30 bg-[#0d1425]/80 shadow-2xl shadow-amber-500/10 backdrop-blur-xl max-w-6xl mx-auto"
         >
           {/* Animated Glowing Frame border */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 rounded-3xl opacity-30 group-hover:opacity-60 blur-md transition duration-700"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 rounded-2xl sm:rounded-3xl opacity-30 group-hover:opacity-60 blur-md transition duration-700"></div>
 
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center p-4 sm:p-8">
+          {/* =========================================================================
+              DESKTOP LAYOUT (lg:grid) - Side-by-side 2-column resolution
+             ========================================================================= */}
+          <div className="relative z-10 hidden lg:grid grid-cols-12 gap-8 items-center p-8">
 
-            {/* 3D Image Showcase Container */}
-            <div className="lg:col-span-7 relative group/img overflow-hidden rounded-2xl border border-amber-400/30 bg-[#080d19]">
-
-              {/* Floating Badges on Image */}
+            {/* Left Column (7/12): Clean 3D Image Showcase (Zero text obscuring artwork) */}
+            <div className="col-span-7 relative group/img overflow-hidden rounded-2xl border border-amber-400/30 bg-[#080d19]">
+              {/* Floating Badges */}
               <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
                 <span className="px-3 py-1 rounded-full bg-amber-500/90 text-slate-950 font-black text-xs shadow-md backdrop-blur-md flex items-center gap-1">
                   <Flame className="w-3.5 h-3.5 fill-current text-slate-950" />
-                  <span>Govinda Ala Re!</span>
+                  <span>{currentStep.badge}</span>
                 </span>
                 {butterSplashCount > 0 && (
                   <motion.span
@@ -122,61 +210,64 @@ export const DahiHandiKrishna3DSection = () => {
                 )}
               </div>
 
-              {/* 3D Illustration */}
-              <motion.img
-                src={krishna3DImg}
-                alt="3D Bal Krishna Breaking Dahi Handi Pot"
-                animate={isBroken ? { scale: [1, 1.04, 1], rotate: [0, -1, 1, 0] } : {}}
-                transition={{ duration: 0.6 }}
-                className="w-full h-[360px] sm:h-[480px] object-cover object-center rounded-2xl transform group-hover/img:scale-105 transition duration-700"
-              />
-
-              {/* Dynamic Butter & Color Particles Overlay when Broken */}
-              <AnimatePresence>
-                {isBroken && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="absolute inset-0 bg-gradient-to-t from-amber-500/30 via-pink-500/20 to-transparent pointer-events-none flex items-center justify-center p-4"
-                  >
-                    <div className="text-center space-y-2">
-                      <motion.div
-                        initial={{ scale: 0.5, y: -20 }}
-                        animate={{ scale: 1.2, y: 0 }}
-                        className="text-3xl sm:text-5xl font-black text-white drop-shadow-[0_4px_12px_rgba(245,158,11,0.8)] font-serif"
-                      >
-                        🧈 MAKHAN SPLASH! 💥
-                      </motion.div>
-                      <p className="text-amber-200 text-xs sm:text-sm font-bold drop-shadow">
-                        Divine Butter & Gulal Colors Everywhere!
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
+              {/* Unobstructed Desktop 3D Animated Image */}
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={storyFrame}
+                  src={currentStep.image}
+                  alt={currentStep.status}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: [1, 1.02, 1] }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.4 }}
+                  className="w-full h-[480px] object-cover object-center rounded-2xl bg-[#080d19] transform group-hover/img:scale-105 transition duration-700"
+                />
               </AnimatePresence>
 
-              {/* Light gradient highlight */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19] via-transparent to-transparent opacity-60 pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none"></div>
             </div>
 
-            {/* Content & Action Panel */}
-            <div className="lg:col-span-5 space-y-6">
+            {/* Right Column (5/12): Desktop Content & Action Panel */}
+            <div className="col-span-5 space-y-6">
               <div className="space-y-3">
                 <span className="text-xs text-amber-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
                   <Award className="w-4 h-4 text-amber-400" />
                   <span>Dahi Handi Special Feature</span>
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-100 font-serif leading-snug">
+                <h3 className="text-3xl font-extrabold text-slate-100 font-serif leading-snug">
                   Break the Divine Pot & Celebrate Janmashtami!
                 </h3>
-                <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-                  Join the village celebration of Goverdhan Haveli. Tap the interactive button below to trigger the Dahi Handi butter splash and fireworks confetti!
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  Join the village celebration of Goverdhan Haveli. Tap the interactive button below to trigger the 8-step animated story video sequence!
                 </p>
               </div>
 
+              {/* 8-Step Story Progress Indicator Bar & Live Status */}
+              <div className="p-3.5 rounded-xl bg-[#080d19] border border-amber-500/40 space-y-2.5 shadow-lg">
+                <div className="flex items-center justify-between text-xs font-extrabold text-slate-100">
+                  <span className="flex items-center gap-1.5 text-amber-300">
+                    <Layers className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>{currentStep.status}</span>
+                  </span>
+                  <span className="text-amber-400 font-extrabold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                    Step {storyFrame + 1} of 8
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-8 gap-1.5 h-2 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                  {storySteps.map((step) => (
+                    <div
+                      key={step.id}
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        storyFrame >= step.id ? 'bg-amber-400 shadow-sm shadow-amber-400' : 'bg-slate-700'
+                      }`}
+                    ></div>
+                  ))}
+                </div>
+              </div>
+
               {/* Feature Pills */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="p-3 rounded-xl bg-[#080d19] border border-amber-500/20 flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-sm">
                     🍯
@@ -198,24 +289,150 @@ export const DahiHandiKrishna3DSection = () => {
                 </div>
               </div>
 
-              {/* Interactive Break Handi Button */}
-              <div className="pt-4 space-y-3">
+              {/* Desktop Break Handi Button */}
+              <div className="pt-2 space-y-3">
                 <motion.button
                   type="button"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.96 }}
+                  disabled={isAnimating}
+                  whileHover={!isAnimating ? { scale: 1.03 } : {}}
+                  whileTap={!isAnimating ? { scale: 0.96 } : {}}
                   onClick={triggerDahiHandiBreak}
-                  className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-black text-sm sm:text-base shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2.5 cursor-pointer uppercase tracking-wider"
+                  className={`w-full py-4 px-6 rounded-2xl font-black text-base shadow-xl flex items-center justify-center gap-2.5 uppercase tracking-wider transition-all duration-300 ${
+                    isAnimating
+                      ? 'bg-slate-800 text-amber-300 border border-amber-500/40 shadow-none cursor-wait'
+                      : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/30 cursor-pointer'
+                  }`}
                 >
-                  <Zap className="w-5 h-5 fill-slate-950 animate-bounce" />
-                  <span>Break Dahi Handi Pot Now! 🏺💥</span>
+                  {isAnimating ? (
+                    <>
+                      <RefreshCw className="w-5 h-5 text-amber-400 animate-spin" />
+                      <span>{currentStep.buttonText}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-5 h-5 fill-slate-950 animate-bounce" />
+                      <span>{currentStep.buttonText}</span>
+                    </>
+                  )}
                 </motion.button>
 
                 <p className="text-center text-[11px] text-slate-400 font-medium">
-                  ✨ Tap to release butter confetti & festive colors!
+                  {isAnimating
+                    ? '⏳ 8-Step story video playing! Resets after cheering...'
+                    : '✨ Tap to play 8-step animated story sequence & confetti!'}
                 </p>
               </div>
 
+            </div>
+
+          </div>
+
+          {/* =========================================================================
+              MOBILE LAYOUT (lg:hidden) - Stacked single screen mobile resolution
+             ========================================================================= */}
+          <div className="relative z-10 block lg:hidden p-4 space-y-3">
+
+            {/* 1. TEXT ABOVE IMAGE */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-amber-400 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-amber-400" />
+                <span>Dahi Handi Special Feature</span>
+              </span>
+              <h3 className="text-xl font-extrabold text-slate-100 font-serif leading-snug">
+                Break the Divine Pot & Celebrate Janmashtami!
+              </h3>
+              <p className="text-slate-300 text-xs leading-relaxed">
+                Join the village celebration of Goverdhan Haveli. Tap the button to trigger 8-step story animation & confetti!
+              </p>
+            </div>
+
+            {/* Mobile 8-Step Story Progress Bar */}
+            <div className="p-2 rounded-xl bg-[#080d19] border border-amber-500/30 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1 truncate">
+                <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="truncate">{currentStep.status}</span>
+              </span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                {storySteps.map((step) => (
+                  <div
+                    key={step.id}
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      storyFrame >= step.id ? 'bg-amber-400' : 'bg-slate-700'
+                    }`}
+                  ></div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. FULL UNCROPPED IMAGE IN MIDDLE (Zero obscuring text overlay) */}
+            <div className="relative group/img overflow-hidden rounded-xl border border-amber-400/30 bg-[#080d19]">
+
+              {/* Floating Badges on Image */}
+              <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-full bg-amber-500/90 text-slate-950 font-black text-[10px] shadow-md backdrop-blur-md flex items-center gap-1">
+                  <Flame className="w-3.5 h-3.5 fill-current text-slate-950" />
+                  <span>{currentStep.badge}</span>
+                </span>
+                {butterSplashCount > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="px-2.5 py-1 rounded-full bg-pink-500 text-white font-extrabold text-[10px] shadow-md"
+                  >
+                    🧈 {butterSplashCount} Broken!
+                  </motion.span>
+                )}
+              </div>
+
+              {/* Unobstructed Mobile 3D Animated Image */}
+              <AnimatePresence mode="wait">
+                <motion.img
+                  key={storyFrame}
+                  src={currentStep.image}
+                  alt={currentStep.status}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: [1, 1.02, 1] }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  transition={{ duration: 0.4 }}
+                  className="w-full h-auto max-h-[300px] object-contain object-center rounded-xl bg-[#080d19]"
+                />
+              </AnimatePresence>
+
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none"></div>
+            </div>
+
+            {/* 3. INTERACTIVE BREAK BUTTON BELOW IMAGE */}
+            <div className="pt-1 space-y-1.5">
+              <motion.button
+                type="button"
+                disabled={isAnimating}
+                whileHover={!isAnimating ? { scale: 1.02 } : {}}
+                whileTap={!isAnimating ? { scale: 0.96 } : {}}
+                onClick={triggerDahiHandiBreak}
+                className={`w-full py-3.5 px-5 rounded-xl font-black text-xs shadow-xl flex items-center justify-center gap-2 uppercase tracking-wider transition-all duration-300 ${
+                  isAnimating
+                    ? 'bg-slate-800 text-amber-300 border border-amber-500/40 shadow-none cursor-wait'
+                    : 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/30 cursor-pointer'
+                }`}
+              >
+                {isAnimating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 text-amber-400 animate-spin" />
+                    <span className="truncate">{currentStep.buttonText}</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 fill-slate-950 animate-bounce" />
+                    <span>{currentStep.buttonText}</span>
+                  </>
+                )}
+              </motion.button>
+
+              <p className="text-center text-[10px] text-slate-400 font-medium">
+                {isAnimating
+                  ? '⏳ Playing 8-step story animation sequence...'
+                  : '✨ Tap to play 8-step animated story sequence & confetti!'}
+              </p>
             </div>
 
           </div>
