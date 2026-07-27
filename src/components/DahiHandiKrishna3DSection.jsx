@@ -102,38 +102,38 @@ export const DahiHandiKrishna3DSection = () => {
     // Step 1: Human Pyramid Forming (0s)
     setStoryFrame(1);
 
-    // Step 2: Krishna Climbing Up (1.0s)
-    setTimeout(() => setStoryFrame(2), 1000);
+    // Step 2: Krishna Climbing Up (2.2s)
+    setTimeout(() => setStoryFrame(2), 2200);
 
-    // Step 3: Reaching Stick Near Pot (2.0s)
-    setTimeout(() => setStoryFrame(3), 2000);
+    // Step 3: Reaching Stick Near Pot (4.4s)
+    setTimeout(() => setStoryFrame(3), 4400);
 
-    // Step 4: Striking The Pot (3.0s)
-    setTimeout(() => setStoryFrame(4), 3000);
+    // Step 4: Striking The Pot (6.6s)
+    setTimeout(() => setStoryFrame(4), 6600);
 
-    // Step 5: Pot Breaking & Butter Splash (4.0s)
+    // Step 5: Pot Breaking & Butter Splash (8.8s)
     setTimeout(() => {
       setStoryFrame(5);
       fireConfettiBurst();
-    }, 4000);
+    }, 8800);
 
-    // Step 6: Butter & Gulal Rain (5.2s)
+    // Step 6: Butter & Gulal Rain (11.3s)
     setTimeout(() => {
       setStoryFrame(6);
       fireConfettiBurst();
-    }, 5200);
+    }, 11300);
 
-    // Step 7: People Clapping & Cheering (6.4s)
+    // Step 7: People Clapping & Cheering (13.8s)
     setTimeout(() => {
       setStoryFrame(7);
       fireConfettiBurst();
-    }, 6400);
+    }, 13800);
 
-    // Reset back to Step 0 (Intact Pot) (8.2s)
+    // Reset back to Step 0 (Intact Pot) (16.8s)
     setTimeout(() => {
       setStoryFrame(0);
       setIsAnimating(false);
-    }, 8200);
+    }, 16800);
   };
 
   return (
@@ -219,7 +219,7 @@ export const DahiHandiKrishna3DSection = () => {
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: [1, 1.02, 1] }}
                   exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.4 }}
+                  transition={{ duration: 0.8, ease: "easeInOut" }}
                   className="w-full h-[480px] object-cover object-center rounded-2xl bg-[#080d19] transform group-hover/img:scale-105 transition duration-700"
                 />
               </AnimatePresence>
@@ -393,7 +393,7 @@ export const DahiHandiKrishna3DSection = () => {
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: [1, 1.02, 1] }}
                   exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.4 }}
+                  transition={{ duration: 0.8, ease: "easeInOut" }}
                   className="w-full h-auto max-h-[300px] object-contain object-center rounded-xl bg-[#080d19]"
                 />
               </AnimatePresence>
