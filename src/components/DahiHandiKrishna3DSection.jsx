@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Flame, Award, Zap, RefreshCw, Layers } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -10,11 +10,22 @@ import krishnaPyramidImg from '../assets/krishna-dahi-handi-pyramid.png';
 import krishnaClimbingImg from '../assets/krishna-dahi-handi-climbing.png';
 import krishnaStrikeImg from '../assets/krishna-dahi-handi-strike.png';
 import krishnaRainImg from '../assets/krishna-dahi-handi-rain.png';
+import { getDahiHandiBrokenCount, incrementDahiHandiBrokenCount } from '../services/supabase';
 
 export const DahiHandiKrishna3DSection = () => {
   const [storyFrame, setStoryFrame] = useState(0); // 0 to 7
   const [isAnimating, setIsAnimating] = useState(false);
   const [butterSplashCount, setButterSplashCount] = useState(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    getDahiHandiBrokenCount().then((count) => {
+      if (isMounted && count > 0) {
+        setButterSplashCount(count);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   const storySteps = [
     {
@@ -99,6 +110,13 @@ export const DahiHandiKrishna3DSection = () => {
     setIsAnimating(true);
     setButterSplashCount((prev) => prev + 1);
 
+    // Persist broken count increment in Supabase
+    incrementDahiHandiBrokenCount().then((res) => {
+      if (res?.count) {
+        setButterSplashCount(res.count);
+      }
+    });
+
     // Step 1: Human Pyramid Forming (0s)
     setStoryFrame(1);
 
@@ -175,13 +193,47 @@ export const DahiHandiKrishna3DSection = () => {
           </motion.p>
         </div>
 
+        {/* Highlighted Global Counter Banner (Matched to max-w-6xl width of feature card) */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="relative max-w-6xl mx-auto rounded-2xl sm:rounded-3xl p-5 sm:p-7 bg-gradient-to-r from-amber-500/15 via-pink-500/15 to-purple-500/15 border border-amber-500/30 bg-[#0d1425]/80 shadow-2xl shadow-amber-500/10 backdrop-blur-xl overflow-hidden text-center space-y-3"
+        >
+          {/* Glowing Ambient Backgrounds */}
+          <div className="absolute -top-10 -left-10 w-48 h-48 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-black uppercase tracking-wider">
+            <Flame className="w-4 h-4 text-amber-400 animate-bounce" />
+            <span>Global Devotee Celebration Counter</span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 py-1">
+            <span className="text-base sm:text-2xl font-bold text-slate-200 font-serif">
+              Until now, Dahi Handi pot broken
+            </span>
+            <span className="text-4xl sm:text-6xl font-black font-serif text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 tracking-tight drop-shadow-[0_4px_16px_rgba(245,158,11,0.6)]">
+              {butterSplashCount.toLocaleString()}
+            </span>
+            <span className="text-base sm:text-2xl font-bold text-amber-300 font-serif">
+              times by devotees! 🏺💥
+            </span>
+          </div>
+
+          <p className="text-xs sm:text-sm text-amber-200/90 font-medium">
+            ✨ Every button click increments this live global counter across all devices worldwide!
+          </p>
+        </motion.div>
+
         {/* Main Interactive 3D Card Display */}
         <motion.div
+          id="dahi-handi-3d"
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="relative group rounded-2xl sm:rounded-3xl overflow-hidden border border-amber-500/30 bg-[#0d1425]/80 shadow-2xl shadow-amber-500/10 backdrop-blur-xl max-w-6xl mx-auto"
+          className="relative group rounded-2xl sm:rounded-3xl overflow-hidden border border-amber-500/30 bg-[#0d1425]/80 shadow-2xl shadow-amber-500/10 backdrop-blur-xl max-w-6xl mx-auto scroll-mt-24"
         >
           {/* Animated Glowing Frame border */}
           <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 via-pink-500 to-purple-600 rounded-2xl sm:rounded-3xl opacity-30 group-hover:opacity-60 blur-md transition duration-700"></div>
@@ -191,40 +243,24 @@ export const DahiHandiKrishna3DSection = () => {
              ========================================================================= */}
           <div className="relative z-10 hidden lg:grid grid-cols-12 gap-8 items-center p-8">
 
-            {/* Left Column (7/12): Clean 3D Image Showcase (Zero text obscuring artwork) */}
-            <div className="col-span-7 relative group/img overflow-hidden rounded-2xl border border-amber-400/30 bg-[#080d19]">
-              {/* Floating Badges */}
-              <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-amber-500/90 text-slate-950 font-black text-xs shadow-md backdrop-blur-md flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 fill-current text-slate-950" />
-                  <span>{currentStep.badge}</span>
-                </span>
-                {butterSplashCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="px-3 py-1 rounded-full bg-pink-500 text-white font-extrabold text-xs shadow-md"
-                  >
-                    🧈 {butterSplashCount} Pots Broken!
-                  </motion.span>
-                )}
-              </div>
+            {/* Left Column (7/12): Fixed Height Desktop 3D Image Showcase (100% clean, zero text overlay) */}
+            <div className="col-span-7 relative w-full h-[480px] group/img overflow-hidden rounded-2xl border border-amber-400/30 bg-[#080d19]">
 
-              {/* Unobstructed Desktop 3D Animated Image */}
-              <AnimatePresence mode="wait">
+              {/* Seamless Desktop Image Crossfade (No mode="wait") */}
+              <AnimatePresence>
                 <motion.img
                   key={storyFrame}
                   src={currentStep.image}
                   alt={currentStep.status}
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: [1, 1.02, 1] }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                  className="w-full h-[480px] object-cover object-center rounded-2xl bg-[#080d19] transform group-hover/img:scale-105 transition duration-700"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeInOut" }}
+                  className="absolute inset-0 w-full h-full object-cover object-center rounded-2xl bg-[#080d19]"
                 />
               </AnimatePresence>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none z-10"></div>
             </div>
 
             {/* Right Column (5/12): Desktop Content & Action Panel */}
@@ -246,12 +282,17 @@ export const DahiHandiKrishna3DSection = () => {
               <div className="p-3.5 rounded-xl bg-[#080d19] border border-amber-500/40 space-y-2.5 shadow-lg">
                 <div className="flex items-center justify-between text-xs font-extrabold text-slate-100">
                   <span className="flex items-center gap-1.5 text-amber-300">
-                    <Layers className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <Flame className="w-4 h-4 text-amber-400 animate-bounce" />
                     <span>{currentStep.status}</span>
                   </span>
-                  <span className="text-amber-400 font-extrabold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
-                    Step {storyFrame + 1} of 8
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-pink-300 font-bold px-2.5 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/30">
+                      🧈 {butterSplashCount.toLocaleString()} Broken!
+                    </span>
+                    <span className="text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                      Step {storyFrame + 1} of 8
+                    </span>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-8 gap-1.5 h-2 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
@@ -328,7 +369,7 @@ export const DahiHandiKrishna3DSection = () => {
           </div>
 
           {/* =========================================================================
-              MOBILE LAYOUT (lg:hidden) - Stacked single screen mobile resolution
+              MOBILE LAYOUT (lg:hidden) - Fixed Aspect Ratio Mobile Showcase
              ========================================================================= */}
           <div className="relative z-10 block lg:hidden p-4 space-y-3">
 
@@ -347,62 +388,51 @@ export const DahiHandiKrishna3DSection = () => {
             </div>
 
             {/* Mobile 8-Step Story Progress Bar */}
-            <div className="p-2 rounded-xl bg-[#080d19] border border-amber-500/30 flex items-center justify-between gap-2">
-              <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1 truncate">
-                <Layers className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="truncate">{currentStep.status}</span>
-              </span>
-              <div className="flex items-center gap-0.5 shrink-0">
+            <div className="p-2.5 rounded-xl bg-[#080d19] border border-amber-500/30 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-100">
+                <span className="flex items-center gap-1.5 text-amber-300 truncate">
+                  <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0 animate-bounce" />
+                  <span className="truncate">{currentStep.badge}</span>
+                </span>
+                <span className="text-[10px] text-pink-300 font-bold px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-500/30 shrink-0">
+                  🧈 {butterSplashCount.toLocaleString()} Broken
+                </span>
+              </div>
+
+              <div className="grid grid-cols-8 gap-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                 {storySteps.map((step) => (
                   <div
                     key={step.id}
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      storyFrame >= step.id ? 'bg-amber-400' : 'bg-slate-700'
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      storyFrame >= step.id ? 'bg-amber-400 shadow-sm shadow-amber-400' : 'bg-slate-700'
                     }`}
                   ></div>
                 ))}
               </div>
             </div>
 
-            {/* 2. FULL UNCROPPED IMAGE IN MIDDLE (Zero obscuring text overlay) */}
-            <div className="relative group/img overflow-hidden rounded-xl border border-amber-400/30 bg-[#080d19]">
+            {/* 2. FIXED ASPECT RATIO MOBILE IMAGE CONTAINER (100% clean artwork) */}
+            <div className="relative w-full aspect-[4/3] max-h-[300px] group/img overflow-hidden rounded-xl border border-amber-400/30 bg-[#080d19]">
 
-              {/* Floating Badges on Image */}
-              <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-full bg-amber-500/90 text-slate-950 font-black text-[10px] shadow-md backdrop-blur-md flex items-center gap-1">
-                  <Flame className="w-3.5 h-3.5 fill-current text-slate-950" />
-                  <span>{currentStep.badge}</span>
-                </span>
-                {butterSplashCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="px-2.5 py-1 rounded-full bg-pink-500 text-white font-extrabold text-[10px] shadow-md"
-                  >
-                    🧈 {butterSplashCount} Broken!
-                  </motion.span>
-                )}
-              </div>
-
-              {/* Unobstructed Mobile 3D Animated Image */}
-              <AnimatePresence mode="wait">
+              {/* Seamless Mobile Image Crossfade (No mode="wait") */}
+              <AnimatePresence>
                 <motion.img
                   key={storyFrame}
                   src={currentStep.image}
                   alt={currentStep.status}
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: [1, 1.02, 1] }}
-                  exit={{ opacity: 0, scale: 0.97 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                  className="w-full h-auto max-h-[300px] object-contain object-center rounded-xl bg-[#080d19]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeInOut" }}
+                  className="absolute inset-0 w-full h-full object-cover object-center bg-[#080d19]"
                 />
               </AnimatePresence>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-[#080d19]/40 via-transparent to-transparent pointer-events-none z-10"></div>
             </div>
 
             {/* 3. INTERACTIVE BREAK BUTTON BELOW IMAGE */}
-            <div className="pt-1 space-y-1.5">
+            <div id="mobile-break-button" className="pt-1 space-y-1.5 scroll-mt-28">
               <motion.button
                 type="button"
                 disabled={isAnimating}

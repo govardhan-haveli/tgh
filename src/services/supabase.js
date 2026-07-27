@@ -217,6 +217,63 @@ export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_ur
 };
 
 /**
+ * Fetch the global Dahi Handi broken count from tshirt_settings table
+ */
+export const getDahiHandiBrokenCount = async () => {
+  if (!supabase) return 0;
+  try {
+    const tableName = JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings';
+    const { data, error } = await supabase
+      .from(tableName)
+      .select('dahi_handi_broken_count')
+      .eq('id', 1)
+      .maybeSingle();
+
+    if (error) return 0;
+    return Number(data?.dahi_handi_broken_count || 0);
+  } catch (err) {
+    console.warn("Error fetching dahi_handi_broken_count:", err);
+    return 0;
+  }
+};
+
+/**
+ * Increment the global Dahi Handi broken count in tshirt_settings table
+ */
+export const incrementDahiHandiBrokenCount = async () => {
+  if (!supabase) return { count: 0 };
+  try {
+    const tableName = JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings';
+    
+    // Fetch current count
+    const { data: existing } = await supabase
+      .from(tableName)
+      .select('dahi_handi_broken_count')
+      .eq('id', 1)
+      .maybeSingle();
+
+    const currentCount = Number(existing?.dahi_handi_broken_count || 0);
+    const newCount = currentCount + 1;
+
+    // Update count in Supabase DB
+    const { data, error } = await supabase
+      .from(tableName)
+      .upsert({ id: 1, dahi_handi_broken_count: newCount, updated_at: new Date().toISOString() })
+      .select('dahi_handi_broken_count');
+
+    if (error) {
+      console.warn("Could not increment dahi_handi_broken_count:", error.message);
+      return { count: newCount };
+    }
+
+    return { count: data?.[0]?.dahi_handi_broken_count ?? newCount };
+  } catch (err) {
+    console.warn("Error incrementing dahi_handi_broken_count:", err);
+    return { count: 0 };
+  }
+};
+
+/**
  * Update registration status in Supabase DB
  */
 export const updateRegistrationStatus = async (id, status) => {

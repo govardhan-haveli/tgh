@@ -17,7 +17,8 @@ import {
   FileCheck,
   Plus,
   Minus,
-  Ruler
+  Ruler,
+  Flame
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import confetti from 'canvas-confetti';
@@ -207,14 +208,23 @@ export const RegistrationPage = () => {
     <div className="min-h-screen bg-[#070b14] text-slate-100 py-6 sm:py-12 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto space-y-6">
         
-        {/* Top Back Navigation */}
-        <div>
+        {/* Top Back Navigation & Action Bar */}
+        <div className="flex items-center justify-between gap-3">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#0d1425] border border-amber-500/20 text-amber-300 text-xs sm:text-sm font-medium hover:border-amber-400/50 transition active:scale-95"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0d1425] border border-amber-500/20 text-amber-300 text-xs sm:text-sm font-medium hover:border-amber-400/50 transition active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back to Home</span>
+          </Link>
+
+          <Link
+            to="/"
+            state={{ scrollTo: 'dahi-handi-3d' }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-pink-600 via-purple-600 to-amber-500 hover:from-pink-500 hover:to-amber-400 text-white font-extrabold text-xs sm:text-sm shadow-md shadow-pink-500/20 transition transform active:scale-95 border border-pink-400/40 cursor-pointer"
+          >
+            <Flame className="w-4 h-4 text-amber-300 animate-bounce" />
+            <span>Break Dahi Handi Pot 🏺💥</span>
           </Link>
         </div>
 

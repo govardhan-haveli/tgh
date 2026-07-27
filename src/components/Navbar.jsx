@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Sparkles, Menu, X, Shirt, Image, Home } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Sparkles, Menu, X, Shirt, Image, Home, Flame } from 'lucide-react';
 import { JANMASTHAMI_CONFIG } from '../data/data';
 import { useSettings } from '../context/SettingsContext';
 import logoImg from '../assets/logo.png';
@@ -9,9 +9,11 @@ export const Navbar = () => {
   const { siteSettings } = useSettings();
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { name: 'Home', path: '/', icon: Home },
+    { name: 'Break Dahi Handi 🏺', path: '/#dahi-handi-3d', icon: Flame, isHash: true, isPotBtn: true },
     { name: 'Register T-Shirt', path: '/register', icon: Shirt, highlight: true },
     { name: 'Photos & Videos', path: '/#gallery', icon: Image, isHash: true }
   ];
@@ -19,13 +21,16 @@ export const Navbar = () => {
   const handleNavClick = (link) => {
     setIsOpen(false);
     if (link.isHash) {
+      const targetId = link.path.replace('/#', '');
+      const isMobile = window.innerWidth < 1024;
+      const actualTarget = (targetId === 'dahi-handi-3d' && isMobile) ? 'mobile-break-button' : targetId;
       if (location.pathname !== '/') {
-        // If not on home page, route to home with hash
-        window.location.href = `/#${link.path.replace('/#', '')}`;
+        // Route to home with scrollTo state
+        navigate('/', { state: { scrollTo: targetId } });
       } else {
-        const element = document.getElementById(link.path.replace('/#', ''));
+        const element = document.getElementById(actualTarget) || document.getElementById(targetId);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
+          element.scrollIntoView({ behavior: 'smooth', block: isMobile ? 'center' : 'start' });
         }
       }
     }

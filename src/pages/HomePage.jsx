@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Shirt, Image, Film } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Sparkles, Shirt, Image, Film, Flame } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { MediaGallery } from '../components/MediaGallery';
@@ -14,6 +14,22 @@ import heroBannerImg from '../assets/hero-banner.jpg';
 
 export const HomePage = () => {
   const { siteSettings } = useSettings();
+  const location = useLocation();
+
+  useEffect(() => {
+    const scrollToId = location.state?.scrollTo || (location.hash ? location.hash.replace('#', '') : null);
+    if (scrollToId) {
+      const timer = setTimeout(() => {
+        const isMobile = window.innerWidth < 1024;
+        const targetId = (scrollToId === 'dahi-handi-3d' && isMobile) ? 'mobile-break-button' : scrollToId;
+        const element = document.getElementById(targetId) || document.getElementById(scrollToId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: isMobile ? 'center' : 'start' });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [location]);
   return (
     <div className="relative overflow-hidden text-slate-100">
       
@@ -77,6 +93,23 @@ export const HomePage = () => {
             transition={{ delay: 0.4 }}
             className="flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-3 sm:gap-4 pt-2 max-w-sm sm:max-w-none mx-auto"
           >
+            <a
+              href="#dahi-handi-3d"
+              onClick={(e) => {
+                e.preventDefault();
+                const isMobile = window.innerWidth < 1024;
+                const targetId = isMobile ? 'mobile-break-button' : 'dahi-handi-3d';
+                const el = document.getElementById(targetId) || document.getElementById('dahi-handi-3d');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: isMobile ? 'center' : 'start' });
+                }
+              }}
+              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-gradient-to-r from-pink-600 via-purple-600 to-amber-500 hover:from-pink-500 hover:to-amber-400 text-white font-extrabold shadow-xl shadow-pink-500/25 transition transform active:scale-95 text-sm sm:text-base flex items-center justify-center gap-2 border border-pink-400/40 cursor-pointer"
+            >
+              <Flame className="w-5 h-5 text-amber-300 animate-bounce" />
+              <span>Break Dahi Handi Pot 🏺💥</span>
+            </a>
+
             <Link
               to="/register"
               className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold shadow-xl shadow-amber-500/25 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
