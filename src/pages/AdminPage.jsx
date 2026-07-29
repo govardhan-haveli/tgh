@@ -150,12 +150,13 @@ export const AdminPage = () => {
   });
   const [editFile, setEditFile] = useState(null);
 
-  // Dynamic Settings state (Group Name, Tagline, Location, Target Date, Sizes, Price, Images)
+  // Dynamic Settings state (Group Name, Tagline, Location, Target Date, Last Date, Sizes, Price, Images)
   const [settings, setSettings] = useState({
     group_name: JANMASTHAMI_CONFIG.groupName,
     tagline: JANMASTHAMI_CONFIG.tagline,
     location: JANMASTHAMI_CONFIG.location,
     target_date: JANMASTHAMI_CONFIG.targetDate,
+    last_date: JANMASTHAMI_CONFIG.lastDate,
     tshirt_sizes: DEFAULT_TSHIRT_SIZES,
     price: 250,
     qr_code_url: '',
@@ -296,6 +297,7 @@ export const AdminPage = () => {
         tagline: res.data.tagline || JANMASTHAMI_CONFIG.tagline,
         location: res.data.location || JANMASTHAMI_CONFIG.location,
         target_date: res.data.target_date || JANMASTHAMI_CONFIG.targetDate,
+        last_date: res.data.last_date || JANMASTHAMI_CONFIG.lastDate,
         tshirt_sizes: parsedSizes.length > 0 ? parsedSizes : DEFAULT_TSHIRT_SIZES,
         price: res.data.price || 250,
         qr_code_url: res.data.qr_code_url || '',
@@ -672,6 +674,7 @@ export const AdminPage = () => {
         tagline: settings.tagline,
         location: settings.location,
         target_date: settings.target_date,
+        last_date: settings.last_date,
         tshirt_sizes: settings.tshirt_sizes,
         price: settings.price,
         qr_code_url: finalQrUrl,
@@ -687,6 +690,7 @@ export const AdminPage = () => {
           tagline: res.data.tagline,
           location: res.data.location,
           target_date: res.data.target_date,
+          last_date: res.data.last_date || settings.last_date,
           tshirt_sizes: savedSizes,
           price: res.data.price,
           qr_code_url: res.data.qr_code_url,
@@ -1295,14 +1299,30 @@ export const AdminPage = () => {
 
                   {/* Section 2: T-Shirt Registration Configuration */}
                   <div className="p-4 sm:p-5 rounded-2xl bg-[#080d19]/60 border border-amber-500/20 space-y-4">
-                    <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-amber-400" />
-                      T-Shirt Price & Size Management
-                    </h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-amber-400" />
+                        T-Shirt Price & Registration Deadline Management
+                      </h3>
+                      {(() => {
+                        const isExpired = settings.last_date && new Date() > new Date(settings.last_date);
+                        return isExpired ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping"></span>
+                            Registration Closed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-semibold">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                            Registration Open
+                          </span>
+                        );
+                      })()}
+                    </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-start">
                       {/* Field: T-Shirt Price */}
-                      <div className="sm:col-span-4">
+                      <div className="sm:col-span-6">
                         <label className="block text-xs font-bold text-amber-200 mb-1.5">
                           T-Shirt Registration Price (INR ₹)
                         </label>
@@ -1319,6 +1339,38 @@ export const AdminPage = () => {
                             className="w-full pl-10 pr-4 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-slate-100 focus:outline-none focus:border-amber-400 font-mono text-base font-bold"
                           />
                         </div>
+                      </div>
+
+                      {/* Field: Last Day for T-Shirt Registration Date & Time */}
+                      <div className="sm:col-span-6">
+                        <label className="block text-xs font-bold text-amber-200 mb-1.5 flex items-center justify-between">
+                          <span>Last Day for T-Shirt Registration</span>
+                          <span className="text-[10px] text-amber-400 font-normal">Click to pick deadline</span>
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={formatToDatetimeLocal(settings.last_date)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              setSettings({ ...settings, last_date: new Date(val).toISOString() });
+                            }
+                          }}
+                          required
+                          className="w-full px-3.5 py-2.5 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs sm:text-sm text-amber-300 focus:outline-none focus:border-amber-400 font-mono font-bold cursor-pointer"
+                        />
+                        {settings.last_date && (
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Deadline: <span className="text-amber-300 font-semibold">{(() => {
+                              try {
+                                const d = new Date(settings.last_date);
+                                return isNaN(d.getTime()) ? settings.last_date : d.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+                              } catch (e) {
+                                return settings.last_date;
+                              }
+                            })()}</span>
+                          </p>
+                        )}
                       </div>
 
                       {/* Dynamic T-Shirt Sizes Table Editor */}

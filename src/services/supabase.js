@@ -160,7 +160,7 @@ export const fetchTShirtSettings = async () => {
 /**
  * Update dynamic T-shirt settings (price, QR code URL, sample image URL, description)
  */
-export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description, group_name, tagline, location, target_date, tshirt_sizes }) => {
+export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_url, description, group_name, tagline, location, target_date, last_date, tshirt_sizes }) => {
   if (!supabase) {
     throw new Error("Service is temporarily unavailable. Please try again later.");
   }
@@ -203,14 +203,25 @@ export const updateTShirtSettings = async ({ price, qr_code_url, sample_image_ur
     tagline: tagline || JANMASTHAMI_CONFIG.tagline,
     location: location || JANMASTHAMI_CONFIG.location,
     target_date: target_date || JANMASTHAMI_CONFIG.targetDate,
+    last_date: last_date || JANMASTHAMI_CONFIG.lastDate,
     tshirt_sizes: normalizedSizes || JANMASTHAMI_CONFIG.tshirtSizes,
     updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
-    .from(JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings')
+  const tableName = JANMASTHAMI_CONFIG.supabaseSettingsTableName || 'tshirt_settings';
+  let { data, error } = await supabase
+    .from(tableName)
     .upsert({ id: 1, ...payload })
     .select();
+
+  if (error && error.message && error.message.includes('last_date')) {
+    console.warn("Column last_date may be missing in database. Retrying without last_date column. Run SQL migration: ALTER TABLE tshirt_settings ADD COLUMN IF NOT EXISTS last_date TEXT;");
+    const fallbackPayload = { ...payload };
+    delete fallbackPayload.last_date;
+    const retry = await supabase.from(tableName).upsert({ id: 1, ...fallbackPayload }).select();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw error;
   return { success: true, data: data[0] };

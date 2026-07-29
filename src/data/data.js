@@ -47,6 +47,9 @@ export const JANMASTHAMI_CONFIG = {
   // Format: YYYY-MM-DDTHH:mm:ss
   targetDate: "2026-09-04T00:00:00+05:30",
 
+  // Last Day for T-Shirt Registration
+  lastDate: "2026-08-25T23:59:59+05:30",
+
   // T-Shirt Sizes available for registration
   tshirtSizes: DEFAULT_TSHIRT_SIZES,
 

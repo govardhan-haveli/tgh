@@ -34,12 +34,15 @@ Access the `/admin` portal using either of the following passwords (configured i
 3. Go to **SQL Editor** -> **New Query** and run the following script:
 
 ```sql
--- Option 1: ADD columns to existing table (keeps existing data)
+-- Option 1: ADD columns to existing tables (keeps existing data)
 ALTER TABLE tshirt_registrations 
 ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT false,
 ADD COLUMN IF NOT EXISTS payment_mode TEXT DEFAULT 'Online';
 
--- Option 2: Clean Recreate Table (deletes old records & recreate fresh)
+ALTER TABLE tshirt_settings 
+ADD COLUMN IF NOT EXISTS last_date TEXT;
+
+-- Option 2: Clean Recreate Tables (deletes old records & recreate fresh)
 DROP TABLE IF EXISTS tshirt_registrations;
 
 CREATE TABLE tshirt_registrations (
@@ -58,20 +61,42 @@ CREATE TABLE tshirt_registrations (
   status TEXT DEFAULT 'Pending' NOT NULL
 );
 
+-- Dynamic Settings Table
+CREATE TABLE IF NOT EXISTS tshirt_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  price NUMERIC DEFAULT 250,
+  qr_code_url TEXT,
+  sample_image_url TEXT,
+  description TEXT,
+  group_name TEXT,
+  tagline TEXT,
+  location TEXT,
+  target_date TEXT,
+  last_date TEXT,
+  tshirt_sizes JSONB,
+  dahi_handi_broken_count INT DEFAULT 0,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE tshirt_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tshirt_settings ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if present to prevent policy already exists error
 DROP POLICY IF EXISTS "Allow anonymous read access" ON tshirt_registrations;
 DROP POLICY IF EXISTS "Allow anonymous insert access" ON tshirt_registrations;
 DROP POLICY IF EXISTS "Allow anonymous update access" ON tshirt_registrations;
 DROP POLICY IF EXISTS "Allow anonymous delete access" ON tshirt_registrations;
+DROP POLICY IF EXISTS "Allow anonymous read access on tshirt_settings" ON tshirt_settings;
+DROP POLICY IF EXISTS "Allow anonymous insert/update access on tshirt_settings" ON tshirt_settings;
 
 -- Add policies for public anonymous access
 CREATE POLICY "Allow anonymous read access" ON tshirt_registrations FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous insert access" ON tshirt_registrations FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow anonymous update access" ON tshirt_registrations FOR UPDATE USING (true);
 CREATE POLICY "Allow anonymous delete access" ON tshirt_registrations FOR DELETE USING (true);
+CREATE POLICY "Allow anonymous read access on tshirt_settings" ON tshirt_settings FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous insert/update access on tshirt_settings" ON tshirt_settings FOR ALL USING (true) WITH CHECK (true);
 ```
 
 4. Copy your project **API URL** and **anon Key** from **Project Settings** -> **API**.

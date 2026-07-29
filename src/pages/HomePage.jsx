@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Shirt, Image, Film, Flame } from 'lucide-react';
+import { Sparkles, Shirt, Image, Film, Flame, Calendar, Lock } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSettings } from '../context/SettingsContext';
 import { CountdownTimer } from '../components/CountdownTimer';
@@ -15,6 +15,23 @@ import heroBannerImg from '../assets/hero-banner.jpg';
 export const HomePage = () => {
   const { siteSettings } = useSettings();
   const location = useLocation();
+
+  const lastDateStr = siteSettings.lastDate || JANMASTHAMI_CONFIG.lastDate;
+  const isRegistrationClosed = (() => {
+    if (!lastDateStr) return false;
+    const d = new Date(lastDateStr);
+    return !isNaN(d.getTime()) && new Date() > d;
+  })();
+
+  const formattedLastDate = (() => {
+    if (!lastDateStr) return '';
+    try {
+      const d = new Date(lastDateStr);
+      return isNaN(d.getTime()) ? lastDateStr : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+      return lastDateStr;
+    }
+  })();
 
   useEffect(() => {
     const scrollToId = location.state?.scrollTo || (location.hash ? location.hash.replace('#', '') : null);
@@ -110,13 +127,28 @@ export const HomePage = () => {
               <span>Break Dahi Handi Pot 🏺💥</span>
             </a>
 
-            <Link
-              to="/register"
-              className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold shadow-xl shadow-amber-500/25 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
-            >
-              <Shirt className="w-5 h-5" />
-              <span>Register T-Shirt Now</span>
-            </Link>
+            <div className="w-full sm:w-auto flex flex-col items-center">
+              <Link
+                to="/register"
+                className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold shadow-xl shadow-amber-500/25 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
+              >
+                <Shirt className="w-5 h-5" />
+                <span>{isRegistrationClosed ? 'View T-Shirt Info' : 'Register T-Shirt Now'}</span>
+              </Link>
+              {formattedLastDate && (
+                <div className="mt-1.5 flex justify-center">
+                  {isRegistrationClosed ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-300 bg-rose-500/10 px-2.5 py-0.5 rounded-full border border-rose-500/30">
+                      <Lock className="w-3 h-3 text-rose-400" /> Closed on {formattedLastDate}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-200 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                      <Calendar className="w-3 h-3 text-amber-400" /> Last Day: {formattedLastDate}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
 
             <a
               href="#gallery"

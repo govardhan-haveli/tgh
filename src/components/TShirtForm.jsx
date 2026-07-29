@@ -16,7 +16,9 @@ import {
   FileCheck,
   Plus,
   Minus,
-  Ruler
+  Ruler,
+  Calendar,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { JANMASTHAMI_CONFIG, formatSizeKey } from '../data/data';
@@ -65,8 +67,25 @@ export const TShirtForm = () => {
     price: siteSettings.price || 250,
     qr_code_url: siteSettings.qr_code_url || '',
     sample_image_url: siteSettings.sample_image_url || '',
-    description: siteSettings.description || ''
+    description: siteSettings.description || '',
+    lastDate: siteSettings.lastDate || JANMASTHAMI_CONFIG.lastDate
   };
+
+  const isRegistrationClosed = (() => {
+    if (!settings.lastDate) return false;
+    const d = new Date(settings.lastDate);
+    return !isNaN(d.getTime()) && new Date() > d;
+  })();
+
+  const formattedLastDate = (() => {
+    if (!settings.lastDate) return '';
+    try {
+      const d = new Date(settings.lastDate);
+      return isNaN(d.getTime()) ? settings.lastDate : d.toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+    } catch (e) {
+      return settings.lastDate;
+    }
+  })();
 
   const handleContactChange = (e) => {
     const { name, value } = e.target;
@@ -127,6 +146,11 @@ export const TShirtForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isRegistrationClosed) {
+      setErrorMsg(`T-Shirt registration is now closed. The last date for registration was ${formattedLastDate}.`);
+      return;
+    }
 
     const cleanMobile = primaryContact.mobile.trim();
 
@@ -216,17 +240,55 @@ export const TShirtForm = () => {
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* Section Header */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-semibold mb-3">
+        <div className="text-center mb-6 space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide uppercase">
             <Shirt className="w-4 h-4 text-amber-400" />
             <span>Mahotsav Uniform T-Shirt</span>
           </div>
-          <h2 className="text-3xl sm:text-5xl font-extrabold text-slate-100 font-serif">
+
+          <h2 className="text-3xl sm:text-5xl font-black bg-gradient-to-r from-amber-100 via-amber-300 to-yellow-500 bg-clip-text text-transparent font-serif leading-tight">
             Register For Goverdhan Haveli T-Shirt
           </h2>
-          <p className="text-slate-300 text-sm sm:text-base mt-2 max-w-xl mx-auto leading-relaxed">
+          <p className="text-slate-300 text-xs sm:text-base max-w-xl mx-auto leading-relaxed">
             Select size quantities (₹{settings.price}/shirt), scan QR code to pay total amount, upload screenshot, and confirm!
           </p>
+
+          {/* Prominent Large Last Registration Date Card / Banner */}
+          {formattedLastDate && (
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="max-w-xl mx-auto pt-1"
+            >
+              {isRegistrationClosed ? (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-rose-950/80 via-red-900/60 to-rose-950/80 border-2 border-rose-500/50 shadow-xl shadow-rose-950/50 text-center space-y-1.5">
+                  <div className="flex items-center justify-center gap-2 text-rose-300 font-extrabold text-sm sm:text-lg">
+                    <Lock className="w-5 h-5 text-rose-400 animate-pulse" />
+                    <span>⚠️ T-SHIRT REGISTRATION IS NOW CLOSED</span>
+                  </div>
+                  <p className="text-rose-200 text-xs sm:text-sm font-medium">
+                    The last date for registration was <strong className="text-rose-100 underline decoration-rose-400 font-bold">{formattedLastDate}</strong>. New orders are disabled.
+                  </p>
+                </div>
+              ) : (
+                <div className="relative group">
+                  <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 opacity-60 blur-sm group-hover:opacity-100 transition duration-300"></div>
+                  <div className="relative p-4 sm:p-5 rounded-2xl bg-[#0a1120] border-2 border-amber-400/60 shadow-xl text-center space-y-1.5">
+                    <div className="flex items-center justify-center gap-2 text-amber-300 font-extrabold text-xs sm:text-sm tracking-wider uppercase">
+                      <Clock className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+                      <span>LAST DAY TO REGISTER T-SHIRT</span>
+                    </div>
+                    <div className="text-xl sm:text-3xl font-black bg-gradient-to-r from-yellow-200 via-amber-300 to-yellow-400 bg-clip-text text-transparent font-mono tracking-wide">
+                      📅 {formattedLastDate}
+                    </div>
+                    <p className="text-slate-300 text-xs sm:text-sm font-medium">
+                      ⚡ Please submit your registration & payment screenshot before the deadline!
+                    </p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
 
         {/* Error Alert Bar */}
@@ -678,10 +740,19 @@ export const TShirtForm = () => {
             <div className="order-4 lg:col-span-7">
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black shadow-xl shadow-amber-500/25 transition transform active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base disabled:opacity-60 cursor-pointer"
+                disabled={submitting || isRegistrationClosed}
+                className={`w-full py-4 px-6 rounded-2xl font-black shadow-xl transition transform flex items-center justify-center gap-2 text-sm sm:text-base ${
+                  isRegistrationClosed
+                    ? 'bg-rose-900/50 text-rose-300 border border-rose-500/30 cursor-not-allowed opacity-80'
+                    : 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-500 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/25 active:scale-95 disabled:opacity-60 cursor-pointer'
+                }`}
               >
-                {submitting ? (
+                {isRegistrationClosed ? (
+                  <>
+                    <Lock className="w-5 h-5" />
+                    <span>Registration Closed (Deadline Passed)</span>
+                  </>
+                ) : submitting ? (
                   <span className="flex items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin" />
                     <span>{submitStatusText || 'Processing...'}</span>
