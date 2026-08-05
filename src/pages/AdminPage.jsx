@@ -28,7 +28,11 @@ import {
   FileCheck,
   Instagram,
   Sparkles,
-  ShoppingBag
+  ShoppingBag,
+  Printer,
+  FileText,
+  Clock,
+  StickyNote
 } from 'lucide-react';
 import { AdminAuthModal } from '../components/AdminAuthModal';
 import {
@@ -45,7 +49,8 @@ import {
   addInstagramReel,
   updateInstagramReel,
   deleteInstagramReel,
-  checkMobileExists
+  checkMobileExists,
+  updateRegistrationRemark
 } from '../services/supabase';
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
 import { JANMASTHAMI_CONFIG, DEFAULT_TSHIRT_SIZES, formatSizeKey } from '../data/data';
@@ -122,6 +127,9 @@ export const AdminPage = () => {
   // Modal States
   const [selectedScreenshot, setSelectedScreenshot] = useState(null);
   const [selectedSizesModal, setSelectedSizesModal] = useState(null);
+  const [selectedRemarkModal, setSelectedRemarkModal] = useState(null);
+  const [remarkText, setRemarkText] = useState('');
+  const [savingRemark, setSavingRemark] = useState(false);
   const [editingRegistration, setEditingRegistration] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -135,7 +143,8 @@ export const AdminPage = () => {
     status: 'Accepted',
     is_paid: true,
     payment_mode: 'Cash',
-    payment_screenshot_url: ''
+    payment_screenshot_url: '',
+    remark: ''
   });
   const [addFile, setAddFile] = useState(null);
 
@@ -147,7 +156,8 @@ export const AdminPage = () => {
     status: 'Pending',
     is_paid: false,
     payment_mode: 'Online',
-    payment_screenshot_url: ''
+    payment_screenshot_url: '',
+    remark: ''
   });
   const [editFile, setEditFile] = useState(null);
 
@@ -354,26 +364,28 @@ export const AdminPage = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this registration?")) return;
+    if (!window.confirm("Are you sure you want to delete this registration? Numbers will be automatically re-sequenced (1, 2, 3...) to remove gaps.")) return;
     try {
       const regToDelete = registrations.find(r => r.id === id);
       if (regToDelete && regToDelete.payment_screenshot_url) {
         deleteFromCloudinary(regToDelete.payment_screenshot_url);
       }
       await deleteRegistration(id);
-      setRegistrations(prev => prev.filter(r => r.id !== id));
+      // Auto-resequence numbers starting from 1 with no gaps
+      await fixRegistrationNumbering();
+      await loadData();
     } catch (err) {
       alert(`Failed to delete: ${err.message}`);
     }
   };
 
   const handleFixNumbering = async () => {
-    if (!window.confirm("This will re-assign registration numbers (1, 2, 3...) based on creation date. Proceed?")) return;
+    if (!window.confirm("Re-sequence all registration numbers starting from #1 based on creation date to remove any missing gaps. Proceed?")) return;
     setFixLoading(true);
     try {
-      await fixRegistrationNumbering();
+      const res = await fixRegistrationNumbering();
       await loadData();
-      alert("Registration numbers successfully re-sequenced!");
+      alert(`✅ Registration numbers successfully re-sequenced! (${res.count} records starting from #1 with no gaps)`);
     } catch (err) {
       alert(`Failed to re-sequence numbers: ${err.message}`);
     } finally {
@@ -526,6 +538,195 @@ export const AdminPage = () => {
     document.body.removeChild(link);
   };
 
+  const handleUpdateRemark = async (id, newRemark) => {
+    try {
+      setRegistrations(prev =>
+        prev.map(r => r.id === id ? { ...r, remark: newRemark } : r)
+      );
+      await updateRegistrationRemark(id, newRemark);
+    } catch (err) {
+      console.warn("Failed to update remark in DB:", err.message);
+    }
+  };
+
+  const handleOpenRemarkModal = (item) => {
+    setSelectedRemarkModal(item);
+    setRemarkText(item.remark || '');
+  };
+
+  const handleSaveRemarkModal = async () => {
+    if (!selectedRemarkModal) return;
+    setSavingRemark(true);
+    try {
+      await handleUpdateRemark(selectedRemarkModal.id, remarkText);
+      setSelectedRemarkModal(null);
+    } catch (err) {
+      alert(`Failed to save remark: ${err.message}`);
+    } finally {
+      setSavingRemark(false);
+    }
+  };
+
+  // Export Public Confirmation List for WhatsApp Group Sharing
+  const handleExportPublicCSV = () => {
+    if (filteredRegistrations.length === 0) {
+      alert('No registration data matches current filter to export.');
+      return;
+    }
+
+    const headers = ['# Reg No', 'Name', 'Mobile Number', 'Selected T-Shirt Sizes', 'Total Shirts', 'Order Status'];
+    const rows = filteredRegistrations.map((r, idx) => {
+      const regNo = r.registration_no || idx + 1;
+      let sizesSummary = r.size;
+      if (r.sizes && typeof r.sizes === 'object') {
+        sizesSummary = Object.entries(r.sizes)
+          .filter(([_, qty]) => Number(qty) > 0)
+          .map(([sz, qty]) => `${sz} (x${qty})`)
+          .join(', ');
+      }
+      const totalTshirts = r.total_tshirts || (r.sizes ? Object.values(r.sizes).reduce((a, b) => a + Number(b), 0) : 1);
+
+      return [
+        regNo,
+        `"${(r.name || '').replace(/"/g, '""')}"`,
+        `"${r.mobile}"`,
+        `"${(sizesSummary || 'None').replace(/"/g, '""')}"`,
+        totalTshirts,
+        r.status
+      ];
+    });
+
+    const titleNotice = `"GOVERDHAN HAVELI JANMASTHAMI 2026 - PUBLIC ORDER CONFIRMATION LIST"\n"Notice: Please verify your order. If any corrections are needed, contact Admin team immediately."\n\n`;
+
+    const csvContent = 'data:text/csv;charset=utf-8,' 
+      + titleNotice
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Goverdhan_Haveli_Group_Order_Confirmation_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Print / Save as PDF Public Confirmation Sheet for WhatsApp Group
+  const handlePrintPublicSheet = () => {
+    if (filteredRegistrations.length === 0) {
+      alert('No registration data matches current filter to print.');
+      return;
+    }
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) {
+      alert('Please allow popups in browser to generate the printable PDF sheet.');
+      return;
+    }
+
+    const rowsHtml = filteredRegistrations.map((r, idx) => {
+      const regNo = r.registration_no || idx + 1;
+      let sizesSummary = r.size;
+      if (r.sizes && typeof r.sizes === 'object') {
+        sizesSummary = Object.entries(r.sizes)
+          .filter(([_, qty]) => Number(qty) > 0)
+          .map(([sz, qty]) => `${sz} (x${qty})`)
+          .join(', ');
+      }
+      const totalTshirts = r.total_tshirts || (r.sizes ? Object.values(r.sizes).reduce((a, b) => a + Number(b), 0) : 1);
+      const dateStr = new Date(r.created_at).toLocaleDateString();
+      const timeStr = new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+
+      return `
+        <tr>
+          <td style="text-align: center; font-weight: bold;">#${regNo}</td>
+          <td style="font-weight: bold;">${r.name || ''}</td>
+          <td style="font-family: monospace;">${r.mobile || ''}</td>
+          <td>${sizesSummary || 'None'}</td>
+          <td style="text-align: center; font-weight: bold;">${totalTshirts} Pcs</td>
+          <td style="text-align: center;">
+            <span style="padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; background-color: ${r.status === 'Accepted' ? '#d1fae5' : r.status === 'Delivered' ? '#e0f2fe' : '#fef3c7'}; color: ${r.status === 'Accepted' ? '#065f46' : r.status === 'Delivered' ? '#075985' : '#92400e'}; font-family: sans-serif;">
+              ${r.status}
+            </span>
+          </td>
+          <td style="font-size: 11px; color: #555;">${dateStr} <br/><span style="color:#888;">${timeStr}</span></td>
+        </tr>
+      `;
+    }).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Goverdhan Haveli Janmashtami 2026 - T-Shirt Order Confirmation List</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; color: #111; }
+            .header { text-align: center; border-bottom: 2px solid #d97706; padding-bottom: 15px; margin-bottom: 20px; }
+            .header h1 { margin: 0; font-size: 24px; color: #92400e; }
+            .header h2 { margin: 5px 0 0 0; font-size: 16px; color: #d97706; }
+            .notice-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #78350f; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+            th { background-color: #78350f; color: white; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+            td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+            tr:nth-child(even) { background-color: #fcfcfc; }
+            .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="no-print" style="margin-bottom: 15px; text-align: right;">
+            <button onclick="window.print()" style="padding: 9px 18px; background: #d97706; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+              🖨️ Print / Save as PDF
+            </button>
+          </div>
+
+          <div class="header">
+            <h1>Goverdhan Haveli Janmashtami Mahotsav 2026</h1>
+            <h2>Official T-Shirt Order Confirmation List</h2>
+          </div>
+
+          <div class="notice-box">
+            <strong>📢 Notice for Group Members:</strong> Please check your name, mobile number, and T-shirt size in this list.
+            If your order is missing or requires correction, please contact the Committee Admin immediately.
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: center;">Reg #</th>
+                <th>Registrant Name</th>
+                <th>Mobile Number</th>
+                <th>Selected Sizes & Qty</th>
+                <th style="text-align: center;">Total</th>
+                <th style="text-align: center;">Status</th>
+                <th>Date & Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            Goverdhan Haveli Official T-Shirt Registration System 2026 &bull; Generated on ${new Date().toLocaleString()}
+          </div>
+
+          <script>
+            setTimeout(() => {
+              window.print();
+            }, 600);
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWin.document.write(htmlContent);
+    printWin.document.close();
+  };
+
   // Open Edit Modal
   const handleOpenEditModal = (item) => {
     setEditingRegistration(item);
@@ -546,7 +747,8 @@ export const AdminPage = () => {
       status: item.status || 'Pending',
       is_paid: Boolean(item.is_paid),
       payment_mode: item.payment_mode || 'Online',
-      payment_screenshot_url: item.payment_screenshot_url || ''
+      payment_screenshot_url: item.payment_screenshot_url || '',
+      remark: item.remark || ''
     });
     setEditFile(null);
     setModalError('');
@@ -594,7 +796,8 @@ export const AdminPage = () => {
         status: editForm.status,
         is_paid: editForm.is_paid,
         payment_mode: editForm.payment_mode,
-        payment_screenshot_url: screenshotUrl
+        payment_screenshot_url: screenshotUrl,
+        remark: editForm.remark
       });
 
       if (res.success) {
@@ -653,7 +856,8 @@ export const AdminPage = () => {
         status: addForm.status,
         is_paid: addForm.is_paid,
         payment_mode: addForm.payment_mode,
-        payment_screenshot_url: screenshotUrl
+        payment_screenshot_url: screenshotUrl,
+        remark: addForm.remark
       });
 
       if (res.success) {
@@ -666,7 +870,8 @@ export const AdminPage = () => {
           status: 'Accepted',
           is_paid: true,
           payment_mode: 'Cash',
-          payment_screenshot_url: ''
+          payment_screenshot_url: '',
+          remark: ''
         });
         setAddFile(null);
       }
@@ -827,11 +1032,11 @@ export const AdminPage = () => {
             <button
               onClick={handleFixNumbering}
               disabled={fixLoading}
-              className="px-3 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-              title="Fix & Resequence Registration Numbers"
+              className="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/60 text-amber-200 text-xs font-bold transition flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer shadow-md shadow-amber-500/10"
+              title="Re-sequence all registration numbers starting from #1 with no missing gaps"
             >
-              <ListOrdered className={`w-4 h-4 text-amber-400 ${fixLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Fix Numbers</span>
+              <ListOrdered className={`w-4 h-4 text-amber-400 stroke-[2.5] ${fixLoading ? 'animate-spin' : ''}`} />
+              <span>Fix Reg Numbers (1, 2, 3...)</span>
             </button>
 
             <button
@@ -843,11 +1048,30 @@ export const AdminPage = () => {
             </button>
 
             <button
+              onClick={handlePrintPublicSheet}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs font-bold transition shadow-md shadow-sky-500/20 flex items-center gap-1.5 cursor-pointer"
+              title="Generate clean printable PDF confirmation sheet to share in WhatsApp group"
+            >
+              <Printer className="w-4 h-4 stroke-[2.5]" />
+              <span>Print / PDF for Group</span>
+            </button>
+
+            <button
+              onClick={handleExportPublicCSV}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-bold transition shadow-md shadow-emerald-500/20 flex items-center gap-1.5 cursor-pointer"
+              title="Export clean CSV formatted for WhatsApp group sharing"
+            >
+              <FileText className="w-4 h-4 stroke-[2.5]" />
+              <span>Public Group CSV</span>
+            </button>
+
+            <button
               onClick={handleExportCSV}
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-bold transition shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+              title="Export Full Admin CSV with screenshots and payment details"
             >
               <Download className="w-4 h-4" />
-              <span>Export CSV</span>
+              <span>Admin CSV</span>
             </button>
 
             <button
@@ -1042,6 +1266,17 @@ export const AdminPage = () => {
                     })}
                   </select>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleFixNumbering}
+                  disabled={fixLoading}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Re-sequence registration numbers starting from #1 with no missing gaps"
+                >
+                  <ListOrdered className={`w-3.5 h-3.5 text-amber-400 ${fixLoading ? 'animate-spin' : ''}`} />
+                  <span>Fix Nos (1, 2, 3...)</span>
+                </button>
               </div>
             </div>
 
@@ -1052,7 +1287,7 @@ export const AdminPage = () => {
                   <thead className="bg-[#080d19] text-amber-400 font-semibold border-b border-amber-500/20 uppercase tracking-wider text-[11px]">
                     <tr>
                       <th className="p-3.5 text-center"># Reg No.</th>
-                      <th className="p-3.5">Date</th>
+                      <th className="p-3.5">Date & Time</th>
                       <th className="p-3.5">Name</th>
                       <th className="p-3.5">Mobile</th>
                       <th className="p-3.5">Size Quantities</th>
@@ -1061,14 +1296,13 @@ export const AdminPage = () => {
                       <th className="p-3.5 text-center">Screenshot</th>
                       <th className="p-3.5">Status</th>
                       <th className="p-3.5 text-center">Status Action</th>
-                      <th className="p-3.5 text-center">Edit</th>
-                      <th className="p-3.5 text-right">Delete</th>
+                      <th className="p-3.5 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-amber-500/10 text-slate-200">
                     {filteredRegistrations.length === 0 ? (
                       <tr>
-                        <td colSpan={12} className="p-8 text-center text-slate-400">
+                        <td colSpan={11} className="p-8 text-center text-slate-400">
                           No matching T-shirt registrations found.
                         </td>
                       </tr>
@@ -1079,7 +1313,13 @@ export const AdminPage = () => {
                             #{item.registration_no || idx + 1}
                           </td>
                           <td className="p-3.5 text-slate-400 text-xs whitespace-nowrap">
-                            {new Date(item.created_at).toLocaleDateString()}
+                            <div className="font-bold text-slate-200">
+                              {new Date(item.created_at).toLocaleDateString()}
+                            </div>
+                            <div className="text-[11px] text-amber-400/90 font-mono font-medium flex items-center gap-1 mt-0.5">
+                              <Clock className="w-3 h-3 text-amber-400/70" />
+                              <span>{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                            </div>
                           </td>
                           <td className="p-3.5 font-bold text-amber-200">{item.name}</td>
                           <td className="p-3.5 font-mono text-slate-300">{item.mobile}</td>
@@ -1089,7 +1329,7 @@ export const AdminPage = () => {
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition group cursor-pointer"
                               title="Click to view full size breakdown"
                             >
-                              <Shirt className="w-4 h-4 text-amber-400 group-hover:scale-110 transition" />
+                              <Shirt className="w-5 h-5 text-amber-400 group-hover:scale-110 transition flex-shrink-0" />
                               <span>
                                 {item.total_tshirts || (item.sizes ? Object.values(item.sizes).reduce((a,b)=>a+Number(b),0) : 1)} Shirts (₹{item.total_amount || ((item.total_tshirts || 1) * (settings.price || 250))})
                               </span>
@@ -1177,21 +1417,21 @@ export const AdminPage = () => {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleStatusChange(item.id, 'Accepted')}
-                                className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold border border-emerald-500/30 transition"
+                                className="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[11px] font-semibold border border-emerald-500/30 transition cursor-pointer"
                                 title="Accept Request"
                               >
                                 Accept
                               </button>
                               <button
                                 onClick={() => handleStatusChange(item.id, 'Delivered')}
-                                className="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[11px] font-semibold border border-sky-500/30 transition"
+                                className="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 text-[11px] font-semibold border border-sky-500/30 transition cursor-pointer"
                                 title="Mark Delivered"
                               >
                                 Delivered
                               </button>
                               <button
                                 onClick={() => handleStatusChange(item.id, 'Rejected')}
-                                className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] font-semibold border border-rose-500/30 transition"
+                                className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] font-semibold border border-rose-500/30 transition cursor-pointer"
                                 title="Reject Request"
                               >
                                 Reject
@@ -1199,26 +1439,46 @@ export const AdminPage = () => {
                             </div>
                           </td>
 
-                          {/* Edit Individual Data Button */}
+                          {/* ACTION Column: Small Remark, Edit, Delete Icon Buttons */}
                           <td className="p-3.5 text-center">
-                            <button
-                              onClick={() => handleOpenEditModal(item)}
-                              className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 transition"
-                              title="Edit User Registration"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                          </td>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Small Remark Icon Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenRemarkModal(item)}
+                                className={`p-1.5 rounded-lg border transition cursor-pointer relative ${
+                                  item.remark
+                                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/60 shadow-sm'
+                                    : 'bg-slate-800/80 hover:bg-amber-500/10 text-slate-400 hover:text-amber-300 border-slate-700/60'
+                                }`}
+                                title={item.remark ? `Remark: ${item.remark}` : "Add Admin Remark"}
+                              >
+                                <StickyNote className="w-4 h-4" />
+                                {item.remark && (
+                                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-400 rounded-full animate-pulse border border-[#0d1425]" />
+                                )}
+                              </button>
 
-                          {/* Delete Button */}
-                          <td className="p-3.5 text-right">
-                            <button
-                              onClick={() => handleDelete(item.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                              title="Delete Registration"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                              {/* Small Edit Icon Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditModal(item)}
+                                className="p-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 transition cursor-pointer"
+                                title="Edit User Registration"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+
+                              {/* Small Delete Icon Button */}
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(item.id)}
+                                className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 transition cursor-pointer"
+                                title="Delete Registration"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2098,6 +2358,19 @@ export const AdminPage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Admin Remark / Notes <span className="text-slate-400 font-normal">(Optional - Admin Internal Only)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={addForm.remark || ''}
+                    onChange={(e) => setAddForm({ ...addForm, remark: e.target.value })}
+                    placeholder="e.g. Hand delivered size 38 on Sunday"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
                     Optional Payment Screenshot Photo
                   </label>
                   <input
@@ -2277,6 +2550,19 @@ export const AdminPage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-amber-200 mb-1">
+                    Admin Remark / Notes <span className="text-slate-400 font-normal">(Optional - Admin Internal Only)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.remark || ''}
+                    onChange={(e) => setEditForm({ ...editForm, remark: e.target.value })}
+                    placeholder="e.g. Hand delivered size 38 on Sunday"
+                    className="w-full px-3.5 py-2 bg-[#080d19] border border-amber-500/30 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-amber-200 mb-1">
                     Payment Screenshot Photo (Upload New to Replace)
                   </label>
                   {editForm.payment_screenshot_url && (
@@ -2399,6 +2685,84 @@ export const AdminPage = () => {
                   className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
                 >
                   Close
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3B: VIEW & EDIT ADMIN REMARK POPUP */}
+      <AnimatePresence>
+        {selectedRemarkModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setSelectedRemarkModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#0d1425] border border-amber-500/40 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between border-b border-amber-500/20 pb-3">
+                <div className="flex items-center gap-2 text-amber-300 font-bold text-base font-serif">
+                  <StickyNote className="w-5 h-5 text-amber-400" />
+                  <span>Admin Remark / Notes</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRemarkModal(null)}
+                  className="p-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/30 text-rose-300 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Order & User Summary Card */}
+              <div className="p-3.5 rounded-2xl bg-[#080d19] border border-amber-500/20 space-y-1 text-xs">
+                <div className="flex justify-between items-center font-bold">
+                  <span className="text-amber-300 font-mono">Reg #{selectedRemarkModal.registration_no || ''}</span>
+                  <span className="text-slate-400">{new Date(selectedRemarkModal.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="text-slate-200 font-bold text-sm">{selectedRemarkModal.name}</div>
+                <div className="text-slate-400 font-mono">{selectedRemarkModal.mobile}</div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-amber-200 mb-1.5">
+                  Internal Note / Delivery Instructions <span className="text-slate-400 font-normal">(Admin Only)</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={remarkText}
+                  onChange={(e) => setRemarkText(e.target.value)}
+                  placeholder="Type note or instructions here... (e.g. Size 38 hand delivered on Sunday, Cash collected by Suresh)"
+                  className="w-full p-3 bg-[#080d19] border border-amber-500/30 rounded-2xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400 resize-none font-sans"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-amber-500/20">
+                <button
+                  type="button"
+                  onClick={() => setSelectedRemarkModal(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveRemarkModal}
+                  disabled={savingRemark}
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-md shadow-amber-500/20"
+                >
+                  {savingRemark ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>Save Remark</span>
                 </button>
               </div>
             </motion.div>

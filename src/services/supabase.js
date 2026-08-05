@@ -88,7 +88,7 @@ export const checkMobileExists = async (mobile) => {
 /**
  * Submit a new T-shirt registration directly to Supabase DB (Size & Quantity Selection)
  */
-export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, payment_screenshot_url, is_paid, payment_mode }) => {
+export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, payment_screenshot_url, is_paid, payment_mode, remark }) => {
   if (!supabase) {
     throw new Error("Supabase client is not initialized. Please check your .env file.");
   }
@@ -118,6 +118,7 @@ export const submitRegistration = async ({ name, mobile, sizes, total_tshirts, t
     payment_screenshot_url: payment_screenshot_url || '',
     is_paid: is_paid ?? false,
     payment_mode: payment_mode || 'Online',
+    remark: remark ? remark.trim() : '',
     status: 'Pending'
   };
 
@@ -333,7 +334,28 @@ export const updatePaymentFields = async (id, { is_paid, payment_mode }) => {
 /**
  * Update full registration details (Name, Mobile, Sizes, Status, Screenshot URL, Payment status & type)
  */
-export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
+/**
+ * Update internal admin remark / notes for a registration
+ */
+export const updateRegistrationRemark = async (id, remark) => {
+  if (!supabase) {
+    throw new Error("Supabase client is not initialized. Please check your .env file.");
+  }
+
+  const { data, error } = await supabase
+    .from(JANMASTHAMI_CONFIG.supabaseTableName)
+    .update({ remark: remark !== undefined ? remark.trim() : '' })
+    .eq('id', id)
+    .select();
+
+  if (error) throw error;
+  return { success: true, data: data[0] };
+};
+
+/**
+ * Update full registration details (Name, Mobile, Sizes, Status, Screenshot URL, Payment status & type, Remark)
+ */
+export const updateRegistrationDetails = async (id, { name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode, remark }) => {
   if (!supabase) {
     throw new Error("Service is temporarily unavailable. Please try again later.");
   }
@@ -373,7 +395,8 @@ export const updateRegistrationDetails = async (id, { name, mobile, sizes, total
     status: status || 'Pending',
     payment_screenshot_url: payment_screenshot_url || '',
     is_paid: is_paid ?? false,
-    payment_mode: payment_mode || 'Online'
+    payment_mode: payment_mode || 'Online',
+    remark: remark !== undefined ? remark.trim() : ''
   };
 
   const { data, error } = await supabase
@@ -389,7 +412,7 @@ export const updateRegistrationDetails = async (id, { name, mobile, sizes, total
 /**
  * Admin direct registration entry (No payment screenshot or QR code required)
  */
-export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode }) => {
+export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshirts, total_amount, status, payment_screenshot_url, is_paid, payment_mode, remark }) => {
   if (!supabase) {
     throw new Error("Service is temporarily unavailable. Please try again later.");
   }
@@ -410,7 +433,8 @@ export const adminCreateRegistration = async ({ name, mobile, sizes, total_tshir
     status: status || 'Accepted',
     payment_screenshot_url: payment_screenshot_url || '',
     is_paid: is_paid ?? true,
-    payment_mode: payment_mode || 'Cash'
+    payment_mode: payment_mode || 'Cash',
+    remark: remark ? remark.trim() : ''
   };
 
   const { data, error } = await supabase
@@ -466,21 +490,23 @@ export const fixRegistrationNumbering = async () => {
   // Fetch all entries ordered by creation date ascending
   const { data, error } = await supabase
     .from(JANMASTHAMI_CONFIG.supabaseTableName)
-    .select('*')
+    .select('id, registration_no, created_at')
     .order('created_at', { ascending: true });
 
   if (error) throw error;
 
   if (data && data.length > 0) {
-    // Update each item with new sequential number
+    // Update each item with new sequential number starting from 1
     for (let i = 0; i < data.length; i++) {
       const newNo = i + 1;
-      const { error: updateErr } = await supabase
-        .from(JANMASTHAMI_CONFIG.supabaseTableName)
-        .update({ registration_no: newNo })
-        .eq('id', data[i].id);
-      
-      if (updateErr) throw updateErr;
+      if (data[i].registration_no !== newNo) {
+        const { error: updateErr } = await supabase
+          .from(JANMASTHAMI_CONFIG.supabaseTableName)
+          .update({ registration_no: newNo })
+          .eq('id', data[i].id);
+        
+        if (updateErr) throw updateErr;
+      }
     }
   }
 
