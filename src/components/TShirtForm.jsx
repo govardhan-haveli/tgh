@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shirt,
   User,
@@ -62,6 +62,25 @@ export const TShirtForm = () => {
 
   const [paymentFile, setPaymentFile] = useState(null);
   const [paymentPreview, setPaymentPreview] = useState('');
+
+  const triggerError = (msg) => {
+    setErrorMsg(msg);
+    const element = document.getElementById('tshirt-form');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  useEffect(() => {
+    if (errorMsg) {
+      const timer = setTimeout(() => {
+        setErrorMsg('');
+      }, 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
   
   const settings = {
     price: siteSettings.price || 250,
@@ -148,30 +167,30 @@ export const TShirtForm = () => {
     e.preventDefault();
 
     if (isRegistrationClosed) {
-      setErrorMsg(`T-Shirt registration is now closed. The last date for registration was ${formattedLastDate}.`);
+      triggerError(`T-Shirt registration is now closed. The last date for registration was ${formattedLastDate}.`);
       return;
     }
 
     const cleanMobile = primaryContact.mobile.trim();
 
     if (!primaryContact.name.trim()) {
-      setErrorMsg('Please enter your full name as contact person.');
+      triggerError('Please enter your full name as contact person.');
       return;
     }
     const mobileRegex = /^[0-9]{10}$/;
     if (!mobileRegex.test(cleanMobile)) {
-      setErrorMsg('Please enter a valid 10-digit mobile number.');
+      triggerError('Please enter a valid 10-digit mobile number.');
       return;
     }
 
     if (totalTShirts === 0) {
-      setErrorMsg('Please select a quantity (at least 1 T-Shirt) for your desired size.');
+      triggerError('Please select a quantity (at least 1 T-Shirt) for your desired size.');
       return;
     }
 
     // MANDATORY FIELD: Payment Screenshot
     if (!paymentFile) {
-      setErrorMsg(`Payment screenshot is mandatory. Scan QR code, pay ₹${totalPayable}, and upload screenshot.`);
+      triggerError(`Payment screenshot is mandatory. Scan QR code, pay ₹${totalPayable}, and upload screenshot.`);
       return;
     }
 
@@ -226,7 +245,7 @@ export const TShirtForm = () => {
         handleRemoveFile();
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to submit registration. Please try again.');
+      triggerError(err.message || 'Failed to submit registration. Please try again.');
     } finally {
       setSubmitting(false);
       setSubmitStatusText('');
@@ -290,6 +309,45 @@ export const TShirtForm = () => {
             </motion.div>
           )}
         </div>
+
+        {/* Floating Top-Right Validation Toast Popup */}
+        <AnimatePresence>
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -30, x: 60, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, x: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -30, x: 60, scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 22 }}
+              className="fixed top-20 right-4 sm:top-24 sm:right-6 z-[9999] max-w-xs sm:max-w-md w-[calc(100vw-2rem)] sm:w-auto bg-gradient-to-br from-[#1a0a10] via-[#0d1425] to-[#1a0a10] border-2 border-rose-500/90 rounded-2xl p-4 shadow-2xl shadow-rose-950/90 backdrop-blur-xl flex items-start gap-3 text-rose-200 text-xs sm:text-sm"
+            >
+              <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex-shrink-0 mt-0.5">
+                <AlertCircle className="w-5 h-5 animate-bounce" />
+              </div>
+
+              <div className="flex-1 space-y-1 pr-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-extrabold text-rose-300 text-xs uppercase tracking-wider font-serif">
+                    Attention Required
+                  </h4>
+                  <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded font-mono font-bold">
+                    Validation Error
+                  </span>
+                </div>
+                <p className="leading-snug font-semibold text-slate-100">
+                  {errorMsg}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setErrorMsg('')}
+                className="p-1.5 rounded-xl text-rose-400 hover:text-white hover:bg-rose-500/30 transition flex-shrink-0 cursor-pointer"
+                title="Close alert"
+              >
+                <X className="w-4 h-4 stroke-[3]" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Error Alert Bar */}
         {errorMsg && (

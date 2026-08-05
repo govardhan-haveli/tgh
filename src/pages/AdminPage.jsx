@@ -44,7 +44,8 @@ import {
   fetchInstagramReels,
   addInstagramReel,
   updateInstagramReel,
-  deleteInstagramReel
+  deleteInstagramReel,
+  checkMobileExists
 } from '../services/supabase';
 import { uploadToCloudinary, deleteFromCloudinary } from '../services/cloudinary';
 import { JANMASTHAMI_CONFIG, DEFAULT_TSHIRT_SIZES, formatSizeKey } from '../data/data';
@@ -389,8 +390,8 @@ export const AdminPage = () => {
     ? siteSettings.tshirtSizes
     : JANMASTHAMI_CONFIG.tshirtSizes;
 
-  // Filtered List based on search, status, size, payment status, and payment mode
-  const filteredRegistrations = registrations.filter(item => {
+  // Base List ignoring size filter (used to keep accurate size tab counters)
+  const baseFilteredRegistrations = registrations.filter(item => {
     const query = searchTerm.toLowerCase().trim();
     const matchesSearch =
       !query ||
@@ -400,32 +401,63 @@ export const AdminPage = () => {
       (item.size || '').toLowerCase().includes(query);
     
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-
-    const matchesSize = sizeFilter === 'All' || 
-      (item.sizes && Number(item.sizes[sizeFilter]) > 0) ||
-      item.size === sizeFilter;
-
     const matchesPayment = paymentFilter === 'All' || 
       (paymentFilter === 'Paid' ? Boolean(item.is_paid) : !item.is_paid);
-
     const matchesMode = modeFilter === 'All' || 
       (item.payment_mode || 'Online') === modeFilter;
 
-    return matchesSearch && matchesStatus && matchesSize && matchesPayment && matchesMode;
+    return matchesSearch && matchesStatus && matchesPayment && matchesMode;
   });
 
-  // Calculate size counts based on FILTERED registrations for Vendor Bulk Printing Order
+  // Filtered List based on search, status, size, payment status, and payment mode
+  const filteredRegistrations = baseFilteredRegistrations.filter(item => {
+    if (sizeFilter === 'All') return true;
+
+    const targetKey = String(sizeFilter).toLowerCase().trim();
+    const targetNo = targetKey.split(' ')[0];
+
+    // 1. Check item.sizes object
+    if (item.sizes && typeof item.sizes === 'object') {
+      const hasQty = Object.entries(item.sizes).some(([k, qty]) => {
+        if (Number(qty) <= 0) return false;
+        const kLower = String(k).toLowerCase().trim();
+        const kNo = kLower.split(' ')[0];
+        return kLower === targetKey || kNo === targetNo;
+      });
+      if (hasQty) return true;
+    }
+
+    // 2. Check item.size summary text
+    if (item.size) {
+      const itemSizeLower = String(item.size).toLowerCase();
+      if (itemSizeLower.includes(targetKey) || itemSizeLower.includes(`size ${targetNo}`) || itemSizeLower.includes(targetNo)) {
+        return true;
+      }
+    }
+
+    // 3. Check item.items array
+    if (Array.isArray(item.items) && item.items.length > 0) {
+      return item.items.some(it => {
+        const szVal = String(it.size || '').toLowerCase();
+        return szVal === targetKey || szVal.startsWith(targetNo);
+      });
+    }
+
+    return false;
+  });
+
+  // Calculate size counts based on baseFilteredRegistrations for vendor order tabs
   const filteredSizeCounts = activeSizes.reduce((acc, sz) => {
     const key = getSzKey(sz);
     const sizeNo = typeof sz === 'object' ? String(sz.size) : String(sz);
-    acc[key] = filteredRegistrations.reduce((count, r) => {
+    acc[key] = baseFilteredRegistrations.reduce((count, r) => {
       if (r.sizes && typeof r.sizes === 'object') {
         return count + (Number(r.sizes[key]) || Number(r.sizes[sizeNo]) || 0);
       }
       if (Array.isArray(r.items) && r.items.length > 0) {
-        return count + r.items.filter(it => it.size === key || it.size === sizeNo).length;
+        return count + r.items.filter(it => String(it.size) === key || String(it.size) === sizeNo).length;
       }
-      return count + (r.size === key || r.size === sizeNo ? 1 : 0);
+      return count + (String(r.size) === key || String(r.size) === sizeNo ? 1 : 0);
     }, 0);
     return acc;
   }, {});
@@ -585,8 +617,15 @@ export const AdminPage = () => {
       setModalError('Please enter full name.');
       return;
     }
-    if (!/^[0-9]{10}$/.test(addForm.mobile.trim())) {
+    const cleanMobile = addForm.mobile.trim();
+    if (!/^[0-9]{10}$/.test(cleanMobile)) {
       setModalError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    const isDuplicate = await checkMobileExists(cleanMobile);
+    if (isDuplicate) {
+      setModalError(`Mobile number ${cleanMobile} is already registered!`);
       return;
     }
 
@@ -848,15 +887,25 @@ export const AdminPage = () => {
               </div>
             </div>
 
-            {/* DYNAMIC SIZE ORDER SUMMARY (BASED ON FILTERED STATUS) */}
+            {/* DYNAMIC SIZE ORDER SUMMARY & INTERACTIVE SIZE FILTER TABS */}
             <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-amber-500/30 shadow-xl space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-amber-300 uppercase tracking-wider">
                   <Shirt className="w-4 h-4 text-amber-400" />
-                  <span>T-Shirt Size Summary (For Vendor Printing Order)</span>
+                  <span>T-Shirt Size Summary & Quick Filters (Click any size tab to filter order list)</span>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {sizeFilter !== 'All' && (
+                    <button
+                      type="button"
+                      onClick={() => setSizeFilter('All')}
+                      className="px-2.5 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Clear Size Filter ({sizeFilter})</span>
+                    </button>
+                  )}
                   <span className="text-xs text-slate-400">Current Filter:</span>
                   <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs">
                     {statusFilter === 'All' ? 'ALL STATUSES' : statusFilter.toUpperCase()}
@@ -873,22 +922,43 @@ export const AdminPage = () => {
                   const sizeNo = typeof sz === 'object' ? sz.size : String(sz);
                   const label = typeof sz === 'object' ? sz.label : '';
                   const count = filteredSizeCounts[szKey] || 0;
+
+                  const isSelected = sizeFilter === szKey || sizeFilter === sizeNo || (
+                    sizeFilter !== 'All' && String(sizeFilter).split(' ')[0] === String(sizeNo)
+                  );
+
                   return (
-                    <div
+                    <button
                       key={szKey}
-                      className={`p-2.5 rounded-xl border transition text-center ${
-                        count > 0
-                          ? 'bg-amber-500/10 border-amber-500/40'
-                          : 'bg-[#080d19] border-amber-500/10 opacity-60'
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          setSizeFilter('All');
+                        } else {
+                          setSizeFilter(szKey);
+                        }
+                      }}
+                      className={`p-2.5 rounded-xl border transition text-center cursor-pointer relative overflow-hidden group ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-amber-400 to-amber-500 text-slate-950 border-amber-300 font-extrabold shadow-lg shadow-amber-500/40 scale-[1.04] ring-2 ring-amber-300'
+                          : count > 0
+                          ? 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20 text-slate-100 hover:border-amber-400'
+                          : 'bg-[#080d19] border-amber-500/10 opacity-50 hover:opacity-80 text-slate-400'
                       }`}
+                      title={`Click to filter list by Size ${sizeNo}`}
                     >
-                      <div className="text-[11px] font-bold text-amber-400 truncate">
+                      <div className={`text-[11px] font-bold truncate ${isSelected ? 'text-slate-950 font-black' : 'text-amber-400'}`}>
                         Size {sizeNo}{label ? ` (${label})` : ''}
                       </div>
-                      <div className="text-lg font-mono font-bold text-slate-100 mt-0.5">
+                      <div className={`text-lg font-mono font-bold mt-0.5 ${isSelected ? 'text-slate-950 font-black' : 'text-slate-100'}`}>
                         {count} Pcs
                       </div>
-                    </div>
+                      {isSelected && (
+                        <div className="text-[9px] font-black uppercase tracking-wider bg-slate-950 text-amber-300 px-1 py-0.2 rounded mt-1 inline-block border border-amber-400/50">
+                          ✓ Active Filter
+                        </div>
+                      )}
+                    </button>
                   );
                 })}
               </div>
