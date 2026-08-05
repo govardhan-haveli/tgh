@@ -1088,27 +1088,95 @@ export const AdminPage = () => {
         {activeTab === 'registrations' && (
           <div className="space-y-6">
             
-            {/* Stats Overview Grid */}
+            {/* Interactive Stats Overview Grid (Click any stat card to filter list) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-amber-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total Registrations</div>
+              {/* Total Registrations Card */}
+              <button
+                type="button"
+                onClick={() => setStatusFilter('All')}
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
+                  statusFilter === 'All'
+                    ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/80 scale-[1.02]'
+                    : 'bg-[#0d1425] border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5'
+                }`}
+                title="Click to view All Registrations"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider">Total Registrations</div>
+                  {statusFilter === 'All' && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded border border-amber-300">
+                      ✓ Active
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl sm:text-3xl font-black text-amber-300 font-mono mt-1">{totalCount}</div>
-              </div>
+              </button>
 
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-yellow-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-yellow-400 uppercase tracking-wider">Under Review</div>
+              {/* Under Review Card */}
+              <button
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === 'Pending' ? 'All' : 'Pending')}
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
+                  statusFilter === 'Pending'
+                    ? 'bg-yellow-500/15 border-yellow-400 ring-2 ring-yellow-400/80 scale-[1.02]'
+                    : 'bg-[#0d1425] border-yellow-500/20 hover:border-yellow-400/50 hover:bg-yellow-500/5'
+                }`}
+                title="Click to filter Under Review registrations"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] sm:text-xs font-bold text-yellow-400 uppercase tracking-wider">Under Review</div>
+                  {statusFilter === 'Pending' && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-slate-950 px-1.5 py-0.5 rounded border border-yellow-300">
+                      ✓ Active
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl sm:text-3xl font-black text-yellow-400 font-mono mt-1">{pendingCount}</div>
-              </div>
+              </button>
 
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-emerald-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-emerald-400 uppercase tracking-wider">Accepted / Paid</div>
+              {/* Accepted / Paid Card */}
+              <button
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === 'Accepted' ? 'All' : 'Accepted')}
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
+                  statusFilter === 'Accepted'
+                    ? 'bg-emerald-500/15 border-emerald-400 ring-2 ring-emerald-400/80 scale-[1.02]'
+                    : 'bg-[#0d1425] border-emerald-500/20 hover:border-emerald-400/50 hover:bg-emerald-500/5'
+                }`}
+                title="Click to filter Accepted / Paid registrations"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] sm:text-xs font-bold text-emerald-400 uppercase tracking-wider">Accepted / Paid</div>
+                  {statusFilter === 'Accepted' && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-slate-950 px-1.5 py-0.5 rounded border border-emerald-300">
+                      ✓ Active
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono mt-1">{acceptedCount}</div>
-              </div>
+              </button>
 
-              <div className="p-4 sm:p-5 rounded-2xl bg-[#0d1425] border border-sky-500/20 shadow-lg">
-                <div className="text-[11px] sm:text-xs font-medium text-sky-400 uppercase tracking-wider">Delivered</div>
+              {/* Delivered Card */}
+              <button
+                type="button"
+                onClick={() => setStatusFilter(statusFilter === 'Delivered' ? 'All' : 'Delivered')}
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
+                  statusFilter === 'Delivered'
+                    ? 'bg-sky-500/15 border-sky-400 ring-2 ring-sky-400/80 scale-[1.02]'
+                    : 'bg-[#0d1425] border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5'
+                }`}
+                title="Click to filter Delivered registrations"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] sm:text-xs font-bold text-sky-400 uppercase tracking-wider">Delivered</div>
+                  {statusFilter === 'Delivered' && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-sky-400 text-slate-950 px-1.5 py-0.5 rounded border border-sky-300">
+                      ✓ Active
+                    </span>
+                  )}
+                </div>
                 <div className="text-2xl sm:text-3xl font-black text-sky-400 font-mono mt-1">{deliveredCount}</div>
-              </div>
+              </button>
             </div>
 
             {/* DYNAMIC SIZE ORDER SUMMARY & INTERACTIVE SIZE FILTER TABS */}
