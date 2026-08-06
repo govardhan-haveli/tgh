@@ -34,6 +34,7 @@ import {
   Clock,
   StickyNote
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 import { AdminAuthModal } from '../components/AdminAuthModal';
 import {
   fetchRegistrations,
@@ -567,6 +568,16 @@ export const AdminPage = () => {
     }
   };
 
+  // Mask first 5 digits of mobile number for public safety (e.g. 9876543210 -> *****43210)
+  const maskMobileNumber = (mob) => {
+    if (!mob) return '';
+    const clean = String(mob).trim();
+    if (clean.length >= 10) {
+      return '*****' + clean.slice(-5);
+    }
+    return clean.length > 5 ? '*****' + clean.slice(5) : '*****';
+  };
+
   // Export Public Confirmation List for WhatsApp Group Sharing
   const handleExportPublicCSV = () => {
     if (filteredRegistrations.length === 0) {
@@ -574,7 +585,7 @@ export const AdminPage = () => {
       return;
     }
 
-    const headers = ['# Reg No', 'Name', 'Mobile Number', 'Selected T-Shirt Sizes', 'Total Shirts', 'Order Status'];
+    const headers = ['# Reg No', 'Name', 'Mobile Number', 'Selected T-Shirt Sizes', 'Total Shirts'];
     const rows = filteredRegistrations.map((r, idx) => {
       const regNo = r.registration_no || idx + 1;
       let sizesSummary = r.size;
@@ -585,14 +596,14 @@ export const AdminPage = () => {
           .join(', ');
       }
       const totalTshirts = r.total_tshirts || (r.sizes ? Object.values(r.sizes).reduce((a, b) => a + Number(b), 0) : 1);
+      const maskedMob = maskMobileNumber(r.mobile);
 
       return [
         regNo,
         `"${(r.name || '').replace(/"/g, '""')}"`,
-        `"${r.mobile}"`,
+        `"${maskedMob}"`,
         `"${(sizesSummary || 'None').replace(/"/g, '""')}"`,
-        totalTshirts,
-        r.status
+        totalTshirts
       ];
     });
 
@@ -636,23 +647,21 @@ export const AdminPage = () => {
       const totalTshirts = r.total_tshirts || (r.sizes ? Object.values(r.sizes).reduce((a, b) => a + Number(b), 0) : 1);
       const dateStr = new Date(r.created_at).toLocaleDateString();
       const timeStr = new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+      const maskedMob = maskMobileNumber(r.mobile);
 
       return `
         <tr>
-          <td style="text-align: center; font-weight: bold;">#${regNo}</td>
-          <td style="font-weight: bold;">${r.name || ''}</td>
-          <td style="font-family: monospace;">${r.mobile || ''}</td>
-          <td>${sizesSummary || 'None'}</td>
-          <td style="text-align: center; font-weight: bold;">${totalTshirts} Pcs</td>
-          <td style="text-align: center;">
-            <span style="padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: bold; background-color: ${r.status === 'Accepted' ? '#d1fae5' : r.status === 'Delivered' ? '#e0f2fe' : '#fef3c7'}; color: ${r.status === 'Accepted' ? '#065f46' : r.status === 'Delivered' ? '#075985' : '#92400e'}; font-family: sans-serif;">
-              ${r.status}
-            </span>
-          </td>
-          <td style="font-size: 11px; color: #555;">${dateStr} <br/><span style="color:#888;">${timeStr}</span></td>
+          <td style="text-align: center; font-weight: bold; color: #fbbf24; font-family: monospace; font-size: 13px;">#${regNo}</td>
+          <td style="font-weight: bold; color: #fef08a; font-size: 13px;">${r.name || ''}</td>
+          <td style="font-family: monospace; color: #cbd5e1; font-weight: 600; font-size: 12px;">${maskedMob}</td>
+          <td style="color: #e2e8f0;">${sizesSummary || 'None'}</td>
+          <td style="text-align: center; font-weight: bold; color: #fbbf24; font-size: 13px;">${totalTshirts} Pcs</td>
+          <td style="font-size: 11px; color: #94a3b8; whitespace-nowrap;">${dateStr} <br/><span style="color:#f59e0b; font-size: 10px; font-weight: 600;">${timeStr}</span></td>
         </tr>
       `;
     }).join('');
+
+    const logoSrc = logoImg || '/logo.png';
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -660,58 +669,158 @@ export const AdminPage = () => {
         <head>
           <title>Goverdhan Haveli Janmashtami 2026 - T-Shirt Order Confirmation List</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px; color: #111; }
-            .header { text-align: center; border-bottom: 2px solid #d97706; padding-bottom: 15px; margin-bottom: 20px; }
-            .header h1 { margin: 0; font-size: 24px; color: #92400e; }
-            .header h2 { margin: 5px 0 0 0; font-size: 16px; color: #d97706; }
-            .notice-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #78350f; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
-            th { background-color: #78350f; color: white; padding: 9px 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
-            td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
-            tr:nth-child(even) { background-color: #fcfcfc; }
-            .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #666; border-top: 1px solid #ddd; padding-top: 10px; }
+            @page {
+              margin: 8mm;
+              size: auto;
+            }
+            * { box-sizing: border-box; }
+            html, body {
+              background-color: #0d1425 !important;
+              color: #f3f4f6 !important;
+              font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+              padding: 0;
+              margin: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            .page-wrapper {
+              background-color: #0d1425 !important;
+              padding: 24px;
+              min-height: 100vh;
+            }
+            .header-banner {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 20px;
+              background-color: #080d19 !important;
+              border: 2px solid #f59e0b !important;
+              border-radius: 16px;
+              padding: 18px 24px;
+              margin-bottom: 20px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            }
+            .header-logo {
+              height: 75px;
+              width: auto;
+              object-fit: contain;
+              filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
+            }
+            .header-text { text-align: left; }
+            .header-text h1 { margin: 0; font-size: 22px; color: #fbbf24 !important; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 900; }
+            .header-text h2 { margin: 4px 0 0 0; font-size: 14px; color: #f59e0b !important; font-weight: 700; }
+            .notice-box {
+              background-color: #131c33 !important;
+              border: 1.5px solid #f59e0b !important;
+              padding: 14px 20px;
+              border-radius: 14px;
+              margin-bottom: 22px;
+              font-size: 12.5px;
+              color: #fef08a !important;
+              line-height: 1.5;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+              font-size: 12px;
+              background-color: #080d19 !important;
+              border-radius: 12px;
+              overflow: hidden;
+              border: 1.5px solid #f59e0b !important;
+            }
+            th {
+              background-color: #040710 !important;
+              color: #fbbf24 !important;
+              padding: 11px 12px;
+              text-align: left;
+              font-size: 11px;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              border-bottom: 1.5px solid #f59e0b !important;
+            }
+            td {
+              padding: 10px 12px;
+              border-bottom: 1px solid rgba(245, 158, 11, 0.2) !important;
+            }
+            tr:nth-child(even) { background-color: rgba(245, 158, 11, 0.05) !important; }
+            .footer {
+              text-align: center;
+              margin-top: 25px;
+              font-size: 11px;
+              color: #94a3b8 !important;
+              border-top: 1px solid rgba(245, 158, 11, 0.3) !important;
+              padding-top: 14px;
+            }
             @media print {
-              body { padding: 0; }
-              .no-print { display: none; }
+              html, body, .page-wrapper {
+                background-color: #0d1425 !important;
+                color: #f3f4f6 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+              }
+              .header-banner {
+                background-color: #080d19 !important;
+                border: 2px solid #f59e0b !important;
+              }
+              .notice-box {
+                background-color: #131c33 !important;
+                border: 1.5px solid #f59e0b !important;
+              }
+              table {
+                background-color: #080d19 !important;
+                border: 1.5px solid #f59e0b !important;
+              }
+              th {
+                background-color: #040710 !important;
+                color: #fbbf24 !important;
+              }
+              .no-print { display: none !important; }
             }
           </style>
         </head>
         <body>
-          <div class="no-print" style="margin-bottom: 15px; text-align: right;">
-            <button onclick="window.print()" style="padding: 9px 18px; background: #d97706; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-              🖨️ Print / Save as PDF
-            </button>
-          </div>
+          <div class="page-wrapper">
+            <div class="no-print" style="margin-bottom: 18px; text-align: right;">
+              <button onclick="window.print()" style="padding: 10px 24px; background: linear-gradient(to right, #f59e0b, #d97706); color: #090d16; border: none; border-radius: 8px; font-weight: 800; font-size: 13px; cursor: pointer; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);">
+                🖨️ Print / Save as PDF
+              </button>
+            </div>
 
-          <div class="header">
-            <h1>Goverdhan Haveli Janmashtami Mahotsav 2026</h1>
-            <h2>Official T-Shirt Order Confirmation List</h2>
-          </div>
+            <div class="header-banner">
+              <img src="${logoSrc}" alt="Goverdhan Haveli Logo" class="header-logo" onError="this.style.display='none'" />
+              <div class="header-text">
+                <h1>Goverdhan Haveli Janmashtami Mahotsav 2026</h1>
+                <h2>Official Public T-Shirt Order Confirmation Sheet</h2>
+              </div>
+            </div>
 
-          <div class="notice-box">
-            <strong>📢 Notice for Group Members:</strong> Please check your name, mobile number, and T-shirt size in this list.
-            If your order is missing or requires correction, please contact the Committee Admin immediately.
-          </div>
+            <div class="notice-box">
+              <strong>📢 Important Notice for Group Members:</strong> Please check your name, masked mobile number, and T-shirt size in this confirmation sheet.
+              If your order is missing or requires correction, please contact the Goverdhan Haveli Committee Admin immediately.
+            </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th style="text-align: center;">Reg #</th>
-                <th>Registrant Name</th>
-                <th>Mobile Number</th>
-                <th>Selected Sizes & Qty</th>
-                <th style="text-align: center;">Total</th>
-                <th style="text-align: center;">Status</th>
-                <th>Date & Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align: center;">Reg #</th>
+                  <th>Devotee Name</th>
+                  <th>Mobile Number</th>
+                  <th>Selected Sizes & Qty</th>
+                  <th style="text-align: center;">Total Shirts</th>
+                  <th>Date & Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+            </table>
 
-          <div class="footer">
-            Goverdhan Haveli Official T-Shirt Registration System 2026 &bull; Generated on ${new Date().toLocaleString()}
+            <div class="footer">
+              Goverdhan Haveli Official T-Shirt Registration System 2026 &bull; Public Confirmation Sheet &bull; Generated on ${new Date().toLocaleString()}
+            </div>
           </div>
 
           <script>
