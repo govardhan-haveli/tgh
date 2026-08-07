@@ -83,7 +83,7 @@ const parseSizesToObjects = (raw) => {
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) return parseSizesToObjects(parsed);
-    } catch (e) {}
+    } catch (e) { }
     return raw.split(',').map(s => s.trim()).filter(Boolean).map(s => {
       const match = s.match(/^(\d+)\s*(?:\(([^)]+)\))?$/);
       if (match) return { size: match[1], label: match[2] || '', width: '', length: '', year: '' };
@@ -412,11 +412,11 @@ export const AdminPage = () => {
       (item.mobile || '').includes(query) ||
       (item.registration_no && item.registration_no.toString().includes(query)) ||
       (item.size || '').toLowerCase().includes(query);
-    
+
     const matchesStatus = statusFilter === 'All' || item.status === statusFilter;
-    const matchesPayment = paymentFilter === 'All' || 
+    const matchesPayment = paymentFilter === 'All' ||
       (paymentFilter === 'Paid' ? Boolean(item.is_paid) : !item.is_paid);
-    const matchesMode = modeFilter === 'All' || 
+    const matchesMode = modeFilter === 'All' ||
       (item.payment_mode || 'Online') === modeFilter;
 
     return matchesSearch && matchesStatus && matchesPayment && matchesMode;
@@ -498,7 +498,7 @@ export const AdminPage = () => {
     }
 
     const headers = ['Reg No', 'Contact Name', 'Mobile Number', 'Selected Sizes Summary', 'Total Order Shirts', 'Total Amount Paid (INR)', 'Payment Status', 'Payment Mode', 'Payment Screenshot URL', 'Status', 'Date'];
-    
+
     const rows = filteredRegistrations.map((r, idx) => {
       const regNo = r.registration_no || idx + 1;
       let sizesSummary = r.size;
@@ -527,13 +527,13 @@ export const AdminPage = () => {
       ];
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,' 
+    const csvContent = 'data:text/csv;charset=utf-8,'
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Goverdhan_Haveli_TShirt_Orders_${statusFilter}_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `Goverdhan_Haveli_TShirt_Orders_${statusFilter}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -609,14 +609,14 @@ export const AdminPage = () => {
 
     const titleNotice = `"GOVERDHAN HAVELI JANMASTHAMI 2026 - PUBLIC ORDER CONFIRMATION LIST"\n"Notice: Please verify your order. If any corrections are needed, contact Admin team immediately."\n\n`;
 
-    const csvContent = 'data:text/csv;charset=utf-8,' 
+    const csvContent = 'data:text/csv;charset=utf-8,'
       + titleNotice
       + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Goverdhan_Haveli_Group_Order_Confirmation_${new Date().toISOString().slice(0,10)}.csv`);
+    link.setAttribute('download', `Goverdhan_Haveli_Group_Order_Confirmation_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -839,7 +839,7 @@ export const AdminPage = () => {
   // Open Edit Modal
   const handleOpenEditModal = (item) => {
     setEditingRegistration(item);
-    
+
     const initialSizes = activeSizes.reduce((acc, sz) => ({ ...acc, [getSzKey(sz)]: 0 }), {});
     if (item.sizes && typeof item.sizes === 'object') {
       Object.entries(item.sizes).forEach(([sz, qty]) => {
@@ -1071,7 +1071,7 @@ export const AdminPage = () => {
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 py-6 sm:py-10 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        
+
         {/* Admin Header Bar */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 sm:p-6 bg-[#0d1425] border border-amber-500/30 rounded-3xl shadow-xl">
           <div className="flex items-center gap-3">
@@ -1083,7 +1083,7 @@ export const AdminPage = () => {
                 Goverdhan Haveli Admin Dashboard
               </h1>
               <p className="text-xs text-slate-400">
-                Manage orders, add manual entries, verify payment screenshots & set dynamic QR code
+                Manage orders, add manual entries, verify payment screenshots & set dynamic QR code & Set Instagram reels
               </p>
             </div>
           </div>
@@ -1105,33 +1105,30 @@ export const AdminPage = () => {
             <div className="flex bg-[#080d19] p-1 rounded-2xl border border-amber-500/20 mr-1">
               <button
                 onClick={() => setActiveTab('registrations')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  activeTab === 'registrations'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeTab === 'registrations'
                     ? 'bg-amber-500 text-slate-950 shadow-md'
                     : 'text-amber-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <Shirt className="w-4 h-4" />
                 <span>Orders</span>
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  activeTab === 'settings'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeTab === 'settings'
                     ? 'bg-amber-500 text-slate-950 shadow-md'
                     : 'text-amber-300 hover:text-white'
-                }`}
+                  }`}
               >
                 <Sliders className="w-4 h-4" />
                 <span>QR & Price</span>
               </button>
               <button
                 onClick={() => setActiveTab('reels')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                  activeTab === 'reels'
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${activeTab === 'reels'
                     ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md'
                     : 'text-pink-400 hover:text-white'
-                }`}
+                  }`}
               >
                 <Instagram className="w-4 h-4" />
                 <span>Instagram Reels</span>
@@ -1196,18 +1193,17 @@ export const AdminPage = () => {
         {/* TAB 1: REGISTRATIONS MANAGEMENT */}
         {activeTab === 'registrations' && (
           <div className="space-y-6">
-            
+
             {/* Interactive Stats Overview Grid (Click any stat card to filter list) */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               {/* Total Registrations Card */}
               <button
                 type="button"
                 onClick={() => setStatusFilter('All')}
-                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
-                  statusFilter === 'All'
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${statusFilter === 'All'
                     ? 'bg-amber-500/15 border-amber-400 ring-2 ring-amber-400/80 scale-[1.02]'
                     : 'bg-[#0d1425] border-amber-500/20 hover:border-amber-400/50 hover:bg-amber-500/5'
-                }`}
+                  }`}
                 title="Click to view All Registrations"
               >
                 <div className="flex items-center justify-between">
@@ -1225,11 +1221,10 @@ export const AdminPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter(statusFilter === 'Pending' ? 'All' : 'Pending')}
-                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
-                  statusFilter === 'Pending'
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${statusFilter === 'Pending'
                     ? 'bg-yellow-500/15 border-yellow-400 ring-2 ring-yellow-400/80 scale-[1.02]'
                     : 'bg-[#0d1425] border-yellow-500/20 hover:border-yellow-400/50 hover:bg-yellow-500/5'
-                }`}
+                  }`}
                 title="Click to filter Under Review registrations"
               >
                 <div className="flex items-center justify-between">
@@ -1247,11 +1242,10 @@ export const AdminPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter(statusFilter === 'Accepted' ? 'All' : 'Accepted')}
-                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
-                  statusFilter === 'Accepted'
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${statusFilter === 'Accepted'
                     ? 'bg-emerald-500/15 border-emerald-400 ring-2 ring-emerald-400/80 scale-[1.02]'
                     : 'bg-[#0d1425] border-emerald-500/20 hover:border-emerald-400/50 hover:bg-emerald-500/5'
-                }`}
+                  }`}
                 title="Click to filter Accepted / Paid registrations"
               >
                 <div className="flex items-center justify-between">
@@ -1269,11 +1263,10 @@ export const AdminPage = () => {
               <button
                 type="button"
                 onClick={() => setStatusFilter(statusFilter === 'Delivered' ? 'All' : 'Delivered')}
-                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${
-                  statusFilter === 'Delivered'
+                className={`p-4 sm:p-5 rounded-2xl border text-left transition cursor-pointer relative overflow-hidden group shadow-lg ${statusFilter === 'Delivered'
                     ? 'bg-sky-500/15 border-sky-400 ring-2 ring-sky-400/80 scale-[1.02]'
                     : 'bg-[#0d1425] border-sky-500/20 hover:border-sky-400/50 hover:bg-sky-500/5'
-                }`}
+                  }`}
                 title="Click to filter Delivered registrations"
               >
                 <div className="flex items-center justify-between">
@@ -1295,7 +1288,7 @@ export const AdminPage = () => {
                   <Shirt className="w-4 h-4 text-amber-400" />
                   <span>T-Shirt Size Summary & Quick Filters (Click any size tab to filter order list)</span>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-2">
                   {sizeFilter !== 'All' && (
                     <button
@@ -1339,13 +1332,12 @@ export const AdminPage = () => {
                           setSizeFilter(szKey);
                         }
                       }}
-                      className={`p-2.5 rounded-xl border transition text-center cursor-pointer relative overflow-hidden group ${
-                        isSelected
+                      className={`p-2.5 rounded-xl border transition text-center cursor-pointer relative overflow-hidden group ${isSelected
                           ? 'bg-gradient-to-b from-amber-400 to-amber-500 text-slate-950 border-amber-300 font-extrabold shadow-lg shadow-amber-500/40 scale-[1.04] ring-2 ring-amber-300'
                           : count > 0
-                          ? 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20 text-slate-100 hover:border-amber-400'
-                          : 'bg-[#080d19] border-amber-500/10 opacity-50 hover:opacity-80 text-slate-400'
-                      }`}
+                            ? 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20 text-slate-100 hover:border-amber-400'
+                            : 'bg-[#080d19] border-amber-500/10 opacity-50 hover:opacity-80 text-slate-400'
+                        }`}
                       title={`Click to filter list by Size ${sizeNo}`}
                     >
                       <div className={`text-[11px] font-bold truncate ${isSelected ? 'text-slate-950 font-black' : 'text-amber-400'}`}>
@@ -1508,7 +1500,7 @@ export const AdminPage = () => {
                             >
                               <Shirt className="w-5 h-5 text-amber-400 group-hover:scale-110 transition flex-shrink-0" />
                               <span>
-                                {item.total_tshirts || (item.sizes ? Object.values(item.sizes).reduce((a,b)=>a+Number(b),0) : 1)} Shirts (₹{item.total_amount || ((item.total_tshirts || 1) * (settings.price || 250))})
+                                {item.total_tshirts || (item.sizes ? Object.values(item.sizes).reduce((a, b) => a + Number(b), 0) : 1)} Shirts (₹{item.total_amount || ((item.total_tshirts || 1) * (settings.price || 250))})
                               </span>
                               <Eye className="w-3.5 h-3.5 text-amber-400/80 ml-0.5" />
                             </button>
@@ -1518,11 +1510,10 @@ export const AdminPage = () => {
                           <td className="p-3.5 text-center">
                             <button
                               onClick={() => handleTogglePaid(item.id, item.is_paid)}
-                              className={`px-3 py-1 rounded-full text-xs font-black transition border shadow-sm cursor-pointer ${
-                                item.is_paid
+                              className={`px-3 py-1 rounded-full text-xs font-black transition border shadow-sm cursor-pointer ${item.is_paid
                                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
                                   : 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
-                              }`}
+                                }`}
                               title="Click to toggle payment verification"
                             >
                               {item.is_paid ? '✓ PAID' : '✕ UNPAID'}
@@ -1534,17 +1525,16 @@ export const AdminPage = () => {
                             <select
                               value={item.payment_mode || 'Online'}
                               onChange={(e) => handleChangePaymentMode(item.id, e.target.value)}
-                              className={`px-2 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${
-                                (item.payment_mode || 'Online') === 'Cash'
+                              className={`px-2 py-1 rounded-lg text-xs font-bold border focus:outline-none cursor-pointer ${(item.payment_mode || 'Online') === 'Cash'
                                   ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
                                   : 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300'
-                              }`}
+                                }`}
                             >
                               <option value="Online" className="bg-[#0d1425] text-slate-100">Online (UPI)</option>
                               <option value="Cash" className="bg-[#0d1425] text-slate-100">Cash</option>
                             </select>
                           </td>
-                          
+
                           {/* Payment Screenshot Thumbnail Column */}
                           <td className="p-3.5 text-center">
                             {item.payment_screenshot_url ? (
@@ -1576,15 +1566,14 @@ export const AdminPage = () => {
                           </td>
 
                           <td className="p-3.5">
-                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${
-                              item.status === 'Accepted'
+                            <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${item.status === 'Accepted'
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 : item.status === 'Rejected'
-                                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                : item.status === 'Delivered'
-                                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
-                                : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                            }`}>
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                  : item.status === 'Delivered'
+                                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                                    : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                              }`}>
                               {item.status}
                             </span>
                           </td>
@@ -1623,11 +1612,10 @@ export const AdminPage = () => {
                               <button
                                 type="button"
                                 onClick={() => handleOpenRemarkModal(item)}
-                                className={`p-1.5 rounded-lg border transition cursor-pointer relative ${
-                                  item.remark
+                                className={`p-1.5 rounded-lg border transition cursor-pointer relative ${item.remark
                                     ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-400/60 shadow-sm'
                                     : 'bg-slate-800/80 hover:bg-amber-500/10 text-slate-400 hover:text-amber-300 border-slate-700/60'
-                                }`}
+                                  }`}
                                 title={item.remark ? `Remark: ${item.remark}` : "Add Admin Remark"}
                               >
                                 <StickyNote className="w-4 h-4" />
@@ -1691,13 +1679,12 @@ export const AdminPage = () => {
               </div>
 
               {settingsMsg.text && (
-                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm ${
-                  settingsMsg.type === 'success'
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm ${settingsMsg.type === 'success'
                     ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
                     : settingsMsg.type === 'error'
-                    ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-                    : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
-                }`}>
+                      ? 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
+                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
+                  }`}>
                   {settingsMsg.type === 'success' ? (
                     <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                   ) : (
@@ -1714,7 +1701,7 @@ export const AdminPage = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSaveSettings} className="space-y-6">
-                  
+
                   {/* Section 1: Community & Event Settings */}
                   <div className="p-4 sm:p-5 rounded-2xl bg-[#080d19]/60 border border-amber-500/20 space-y-4">
                     <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
@@ -2213,11 +2200,10 @@ export const AdminPage = () => {
               </div>
 
               {reelMsg.text && (
-                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm ${
-                  reelMsg.type === 'success'
+                <div className={`p-4 rounded-2xl flex items-center gap-3 text-xs sm:text-sm ${reelMsg.type === 'success'
                     ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
                     : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'
-                }`}>
+                  }`}>
                   {reelMsg.type === 'success' ? (
                     <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
                   ) : (
@@ -2477,7 +2463,7 @@ export const AdminPage = () => {
                             })}
                             className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
                           >
-                            {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(n => (
                               <option key={n} value={n}>{n}</option>
                             ))}
                           </select>
@@ -2669,7 +2655,7 @@ export const AdminPage = () => {
                             })}
                             className="px-2 py-1 bg-[#080d19] border border-amber-500/20 rounded-lg text-xs font-bold text-amber-300"
                           >
-                            {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(n => (
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20].map(n => (
                               <option key={n} value={n}>{n}</option>
                             ))}
                           </select>
@@ -3095,7 +3081,7 @@ export const AdminPage = () => {
                 <div className="text-slate-300">Name: <strong className="text-amber-200">{selectedSizesModal.name}</strong></div>
                 <div className="text-slate-300 font-mono">Mobile: <span className="text-amber-300">{selectedSizesModal.mobile}</span></div>
                 <div className="text-slate-300 flex items-center justify-between pt-1.5 border-t border-amber-500/10">
-                  <span>Total Order: <strong className="text-emerald-400 font-mono">{selectedSizesModal.total_tshirts || (selectedSizesModal.sizes ? Object.values(selectedSizesModal.sizes).reduce((a,b)=>a+Number(b),0) : 1)} Pcs</strong></span>
+                  <span>Total Order: <strong className="text-emerald-400 font-mono">{selectedSizesModal.total_tshirts || (selectedSizesModal.sizes ? Object.values(selectedSizesModal.sizes).reduce((a, b) => a + Number(b), 0) : 1)} Pcs</strong></span>
                   <span>Total Amount: <strong className="text-emerald-400 font-mono">₹{selectedSizesModal.total_amount || ((selectedSizesModal.total_tshirts || 1) * (settings.price || 250))}</strong></span>
                 </div>
               </div>
